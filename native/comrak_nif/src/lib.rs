@@ -18,7 +18,6 @@ use comrak::{
 use inkjet_adapter::InkjetAdapter;
 use rustler::{Env, NifResult, Term};
 use serde::{Deserialize, Serialize};
-use serde_rustler::to_term;
 use types::options::*;
 
 rustler::init!(
@@ -105,7 +104,7 @@ fn render(env: Env, unsafe_html: String, sanitize: bool) -> NifResult<Term> {
         false => unsafe_html,
     };
 
-    to_term(env, html).map_err(|err| err.into())
+    rustler::serde::to_term(env, html).map_err(|err| err.into())
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -207,7 +206,7 @@ impl ExNode {
 
 #[rustler::nif(schedule = "DirtyCpu")]
 fn parse_document<'a>(env: Env<'a>, md: &str) -> NifResult<Term<'a>> {
-    to_term(env, ExNode::parse_document(md)).map_err(|err| err.into())
+    rustler::serde::to_term(env, ExNode::parse_document(md)).map_err(|err| err.into())
 }
 
 #[cfg(test)]
