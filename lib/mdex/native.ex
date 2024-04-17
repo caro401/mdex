@@ -15,6 +15,7 @@ defmodule MDEx.Native do
     mode: mode,
     force_build: System.get_env("MDEX_BUILD") in ["1", "true"]
 
+  def parse_document(_md), do: :erlang.nif_error(:nif_not_loaded)
   def to_html(_md), do: :erlang.nif_error(:nif_not_loaded)
   def to_html_with_options(_md, _options), do: :erlang.nif_error(:nif_not_loaded)
 end

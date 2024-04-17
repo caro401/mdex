@@ -124,6 +124,29 @@ pub enum ExAttr {
 }
 
 impl ExNode {
+    pub fn parse_document(md: &str) -> ExNode {
+        let arena = Arena::new();
+        let root = comrak::parse_document(&arena, md, &comrak::ComrakOptions::default());
+        Self::parse_node(root)
+    }
+
+    fn parse_node<'a>(node: &'a AstNode<'a>) -> Self {
+        let children = node
+            .children()
+            .map(|child| Self::parse_node(child))
+            .collect::<Vec<_>>();
+
+        match &node.data.borrow().value {
+            NodeValue::Document => ExNode::Document(vec![], children),
+            NodeValue::Heading(ref heading) => ExNode::Heading(vec![ExAttr::Level(1)], children),
+            NodeValue::Paragraph => ExNode::Paragraph(vec![], children),
+            NodeValue::SoftBreak => ExNode::SoftBreak(vec![], children),
+            NodeValue::Emph => ExNode::Emph(vec![], children),
+            NodeValue::Text(ref text) => ExNode::Text(text.clone()),
+            _ => ExNode::Heading(vec![ExAttr::Level(1)], children),
+        }
+    }
+
     pub fn format_document(&self) -> String {
         let arena = Arena::new();
 
@@ -183,30 +206,7 @@ impl ExNode {
 
 #[rustler::nif(schedule = "DirtyCpu")]
 fn parse_document<'a>(env: Env<'a>, md: &str) -> NifResult<Term<'a>> {
-    to_term(env, do_parse_document(md)).map_err(|err| err.into())
-}
-
-fn do_parse_document(md: &str) -> ExNode {
-    let arena = Arena::new();
-    let root = comrak::parse_document(&arena, md, &comrak::ComrakOptions::default());
-    parse_node(root)
-}
-
-fn parse_node<'a>(node: &'a AstNode<'a>) -> ExNode {
-    let children = node
-        .children()
-        .map(|child| parse_node(child))
-        .collect::<Vec<_>>();
-
-    match &node.data.borrow().value {
-        NodeValue::Document => ExNode::Document(vec![], children),
-        NodeValue::Heading(ref heading) => ExNode::Heading(vec![ExAttr::Level(1)], children),
-        NodeValue::Paragraph => ExNode::Paragraph(vec![], children),
-        NodeValue::SoftBreak => ExNode::SoftBreak(vec![], children),
-        NodeValue::Emph => ExNode::Emph(vec![], children),
-        NodeValue::Text(ref text) => ExNode::Text(text.clone()),
-        _ => ExNode::Heading(vec![ExAttr::Level(1)], children),
-    }
+    to_term(env, ExNode::parse_document(md)).map_err(|err| err.into())
 }
 
 #[cfg(test)]
@@ -232,12 +232,12 @@ mod tests {
             ],
         );
 
-        assert_eq!(do_parse_document("# header\n*hello*"), parsed);
+        assert_eq!(ExNode::parse_document("# header\n*hello*"), parsed);
     }
 
     #[test]
     fn format_document_from_exnode() {
-        let exnode = do_parse_document("# header");
+        let exnode = ExNode::parse_document("# header");
         let astnode = exnode.format_document();
         println!("{:?}", astnode);
     }

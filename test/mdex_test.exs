@@ -8,6 +8,19 @@ defmodule MDExTest do
     assert html == expected
   end
 
+  test "parse" do
+    :ExNode
+    :Document
+    :Heading
+    :ExAttr
+    :Level
+    :Paragraph
+    :SoftBreak
+    :Emph
+    :Text
+    dbg MDEx.parse_document("# hello")
+  end
+
   describe "syntax highlighting" do
     test "enabled by default" do
       assert_output(

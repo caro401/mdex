@@ -8,6 +8,10 @@ defmodule MDEx do
 
   alias MDEx.Native
 
+  def parse_document(markdown) do
+    Native.parse_document(markdown)
+ end
+
   @doc """
   Convert `markdown` to HTML.
 
