@@ -18,7 +18,8 @@ defmodule MDExTest do
     :SoftBreak
     :Emph
     :Text
-    dbg MDEx.parse_document("# hello")
+
+    assert MDEx.parse_document("# hello") == {"document", [], [{"heading", [{"level", 1}], ["hello"]}]}
   end
 
   describe "syntax highlighting" do

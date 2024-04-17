@@ -115,6 +115,7 @@ pub enum ExNode {
     Paragraph(Vec<ExAttr>, Vec<ExNode>),
     Emph(Vec<ExAttr>, Vec<ExNode>),
     SoftBreak(Vec<ExAttr>, Vec<ExNode>),
+    #[serde(untagged)]
     Text(String),
 }
 
@@ -143,7 +144,7 @@ impl ExNode {
             NodeValue::SoftBreak => ExNode::SoftBreak(vec![], children),
             NodeValue::Emph => ExNode::Emph(vec![], children),
             NodeValue::Text(ref text) => ExNode::Text(text.clone()),
-            _ => ExNode::Heading(vec![ExAttr::Level(1)], children),
+            _ => todo!(),
         }
     }
 
