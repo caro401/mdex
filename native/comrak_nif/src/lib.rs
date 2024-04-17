@@ -1,20 +1,30 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
+
 #[macro_use]
 extern crate rustler;
 
 mod inkjet_adapter;
 mod types;
 
+use std::cell::RefCell;
+
 use ammonia::clean;
 use comrak::{
-    markdown_to_html, markdown_to_html_with_plugins, ComrakPlugins, ExtensionOptions,
-    ListStyleType, Options, ParseOptions, RenderOptions,
+    markdown_to_html, markdown_to_html_with_plugins,
+    nodes::{Ast, AstNode, LineColumn, NodeHeading, NodeValue},
+    Arena, ComrakPlugins, ExtensionOptions, ListStyleType, Options, ParseOptions, RenderOptions,
 };
 use inkjet_adapter::InkjetAdapter;
 use rustler::{Env, NifResult, Term};
+use serde::{Deserialize, Serialize};
 use serde_rustler::to_term;
 use types::options::*;
 
-rustler::init!("Elixir.MDEx.Native", [to_html, to_html_with_options]);
+rustler::init!(
+    "Elixir.MDEx.Native",
+    [parse_document, to_html, to_html_with_options]
+);
 
 #[rustler::nif(schedule = "DirtyCpu")]
 fn to_html(md: &str) -> String {
@@ -96,4 +106,139 @@ fn render(env: Env, unsafe_html: String, sanitize: bool) -> NifResult<Term> {
     };
 
     to_term(env, html).map_err(|err| err.into())
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ExNode {
+    Document(Vec<ExAttr>, Vec<ExNode>),
+    Heading(Vec<ExAttr>, Vec<ExNode>),
+    Paragraph(Vec<ExAttr>, Vec<ExNode>),
+    Emph(Vec<ExAttr>, Vec<ExNode>),
+    SoftBreak(Vec<ExAttr>, Vec<ExNode>),
+    Text(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum ExAttr {
+    Level(u8),
+}
+
+impl ExNode {
+    pub fn format_document(&self) -> String {
+        let arena = Arena::new();
+
+        if let ExNode::Document(attrs, children) = self {
+            let mut output = vec![];
+            let ast_node =
+                self.to_ast_nodee(&arena, ExNode::Document(attrs.to_vec(), children.to_vec()));
+
+            println!("ast_node: {:?}", ast_node);
+
+            comrak::html::format_document(ast_node, &Options::default(), &mut output).unwrap();
+            String::from_utf8(output).unwrap()
+        } else {
+            // TODO: return Result
+            panic!("Expected `document` node in AST")
+        }
+    }
+
+    fn ast<'a>(&self, arena: &'a Arena<AstNode<'a>>, node_value: NodeValue) -> &AstNode<'a> {
+        arena.alloc(AstNode::new(RefCell::new(Ast::new(
+            node_value,
+            LineColumn { line: 0, column: 0 },
+        ))))
+    }
+
+    fn to_ast_nodee<'a>(
+        &'a self,
+        arena: &'a Arena<AstNode<'a>>,
+        exnode: ExNode,
+    ) -> &'a AstNode<'a> {
+        let build = |node_value: NodeValue, children: Vec<ExNode>| {
+            let parent = self.ast(arena, node_value);
+
+            for child in children {
+                let ast_child = self.to_ast_nodee(&arena, child);
+                parent.append(ast_child);
+            }
+
+            parent
+        };
+
+        match exnode {
+            ExNode::Document(_attrs, children) => build(NodeValue::Document, children),
+            ExNode::Heading(_attrs, children) => build(
+                NodeValue::Heading(NodeHeading {
+                    level: 1,
+                    setext: false,
+                }),
+                children,
+            ),
+            ExNode::Paragraph(_attrs, children) => build(NodeValue::Paragraph, children),
+            ExNode::Text(text) => build(NodeValue::Text(text.to_owned()), vec![]),
+            _ => todo!(),
+        }
+    }
+}
+
+#[rustler::nif(schedule = "DirtyCpu")]
+fn parse_document<'a>(env: Env<'a>, md: &str) -> NifResult<Term<'a>> {
+    to_term(env, do_parse_document(md)).map_err(|err| err.into())
+}
+
+fn do_parse_document(md: &str) -> ExNode {
+    let arena = Arena::new();
+    let root = comrak::parse_document(&arena, md, &comrak::ComrakOptions::default());
+    parse_node(root)
+}
+
+fn parse_node<'a>(node: &'a AstNode<'a>) -> ExNode {
+    let children = node
+        .children()
+        .map(|child| parse_node(child))
+        .collect::<Vec<_>>();
+
+    match &node.data.borrow().value {
+        NodeValue::Document => ExNode::Document(vec![], children),
+        NodeValue::Heading(ref heading) => ExNode::Heading(vec![ExAttr::Level(1)], children),
+        NodeValue::Paragraph => ExNode::Paragraph(vec![], children),
+        NodeValue::SoftBreak => ExNode::SoftBreak(vec![], children),
+        NodeValue::Emph => ExNode::Emph(vec![], children),
+        NodeValue::Text(ref text) => ExNode::Text(text.clone()),
+        _ => ExNode::Heading(vec![ExAttr::Level(1)], children),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_document() {
+        let parsed = ExNode::Document(
+            vec![],
+            vec![
+                ExNode::Heading(
+                    vec![ExAttr::Level(1)],
+                    vec![ExNode::Text("header".to_string())],
+                ),
+                ExNode::Paragraph(
+                    vec![],
+                    vec![ExNode::Emph(
+                        vec![],
+                        vec![ExNode::Text("hello".to_string())],
+                    )],
+                ),
+            ],
+        );
+
+        assert_eq!(do_parse_document("# header\n*hello*"), parsed);
+    }
+
+    #[test]
+    fn format_document_from_exnode() {
+        let exnode = do_parse_document("# header");
+        let astnode = exnode.format_document();
+        println!("{:?}", astnode);
+    }
 }
