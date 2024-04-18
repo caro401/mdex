@@ -29,6 +29,10 @@ defmodule MDEx do
     Native.to_html(markdown)
   end
 
+  def to_html(ast) when is_tuple(ast) do
+    Native.ast_to_html(ast)
+  end
+
   @doc """
   Convert `markdown` to HTML with custom `opts`.
 

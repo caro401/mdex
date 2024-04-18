@@ -9,17 +9,12 @@ defmodule MDExTest do
   end
 
   test "parse" do
-    :ExNode
-    :Document
-    :Heading
-    :ExAttr
-    :Level
-    :Paragraph
-    :SoftBreak
-    :Emph
-    :Text
+    assert MDEx.parse_document("# hello") == {"document", [], [{"heading", [{"level", 1}, {"setext", false}], ["hello"]}]}
+  end
 
-    assert MDEx.parse_document("# hello") == {"document", [], [{"heading", [{"level", 1}], ["hello"]}]}
+  test "format" do
+    ast = MDEx.parse_document("# hello")
+    assert MDEx.to_html(ast) == "# hello"
   end
 
   describe "syntax highlighting" do
