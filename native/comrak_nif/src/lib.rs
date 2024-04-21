@@ -12,7 +12,7 @@ use std::cell::RefCell;
 use ammonia::clean;
 use comrak::{
     markdown_to_html, markdown_to_html_with_plugins,
-    nodes::{Ast, AstNode, LineColumn, NodeHeading, NodeValue},
+    nodes::{Ast, AstNode, LineColumn, NodeHeading, NodeList, NodeValue},
     Arena, ComrakPlugins, ExtensionOptions, ListStyleType, Options, ParseOptions, RenderOptions,
 };
 use inkjet_adapter::InkjetAdapter;
@@ -267,8 +267,10 @@ struct ExNodeAttr(String, ExNodeAttrValue);
 
 #[derive(Debug, Clone, PartialEq, NifUntaggedEnum)]
 enum ExNodeAttrValue {
-    Level(u8),
-    Setext(bool),
+    U8(u8),
+    Usize(usize),
+    Bool(bool),
+    Text(String),
 }
 
 impl ExNode {
@@ -278,7 +280,7 @@ impl ExNode {
 
             match node.len() {
                 3 => ExNode::decode_node(node),
-                _ => todo!(),
+                _ => todo!("decode term node.len != 3"),
             }
         } else if term.is_binary() {
             let text: String = term.decode().unwrap();
@@ -287,7 +289,7 @@ impl ExNode {
                 children: vec![],
             }
         } else {
-            todo!()
+            todo!("decode term else")
         }
     }
 
@@ -311,12 +313,51 @@ impl ExNode {
             },
             "heading" => ExNode {
                 data: ExNodeData::Heading(ExNodeHeading {
+                    // FIXME: node heading attrs
                     level: 1,
                     setext: false,
                 }),
                 children,
             },
-            &_ => todo!(),
+            "paragraph" => ExNode {
+                data: ExNodeData::Paragraph,
+                children,
+            },
+            "strong" => ExNode {
+                data: ExNodeData::Strong,
+                children,
+            },
+            "emph" => ExNode {
+                data: ExNodeData::Emph,
+                children,
+            },
+            "list" => ExNode {
+                data: ExNodeData::List(ExNodeList {
+                    // FIXME: node list attrs
+                    list_type: ExListType::Bullet,
+                    marker_offset: 2,
+                    padding: 2,
+                    start: 1,
+                    delimiter: ExListDelimType::Period,
+                    bullet_char: 45,
+                    tight: true,
+                }),
+                children,
+            },
+            "item" => ExNode {
+                data: ExNodeData::Item(ExNodeList {
+                    // FIXME: node list attrs
+                    list_type: ExListType::Bullet,
+                    marker_offset: 2,
+                    padding: 2,
+                    start: 1,
+                    delimiter: ExListDelimType::Period,
+                    bullet_char: 45,
+                    tight: true,
+                }),
+                children,
+            },
+            &_ => todo!("exnode decode_node"),
         }
     }
 
@@ -336,7 +377,7 @@ impl ExNode {
         } = self
         {
             let mut output = vec![];
-            let ast_node = self.to_ast_nodee(
+            let ast_node = self.to_ast_node(
                 &arena,
                 ExNode {
                     data: ExNodeData::Document,
@@ -358,16 +399,12 @@ impl ExNode {
         ))))
     }
 
-    fn to_ast_nodee<'a>(
-        &'a self,
-        arena: &'a Arena<AstNode<'a>>,
-        exnode: ExNode,
-    ) -> &'a AstNode<'a> {
+    fn to_ast_node<'a>(&'a self, arena: &'a Arena<AstNode<'a>>, exnode: ExNode) -> &'a AstNode<'a> {
         let build = |node_value: NodeValue, children: Vec<ExNode>| {
             let parent = self.ast(arena, node_value);
 
             for child in children {
-                let ast_child = self.to_ast_nodee(arena, child);
+                let ast_child = self.to_ast_node(arena, child);
                 parent.append(ast_child);
             }
 
@@ -393,7 +430,51 @@ impl ExNode {
                 data: ExNodeData::Text(text),
                 children,
             } => build(NodeValue::Text(text.to_owned()), vec![]),
-            _ => todo!(),
+            ExNode {
+                data: ExNodeData::Paragraph,
+                children,
+            } => build(NodeValue::Paragraph, children),
+            ExNode {
+                data: ExNodeData::Strong,
+                children,
+            } => build(NodeValue::Strong, children),
+            ExNode {
+                data: ExNodeData::Emph,
+                children,
+            } => build(NodeValue::Emph, children),
+            ExNode {
+                data: ExNodeData::List(ref node_list),
+                children,
+            } => build(
+                NodeValue::List(NodeList {
+                    // FIXME: node list attrs
+                    list_type: comrak::nodes::ListType::Bullet,
+                    marker_offset: node_list.marker_offset,
+                    padding: node_list.padding,
+                    start: node_list.start,
+                    delimiter: comrak::nodes::ListDelimType::Period,
+                    bullet_char: node_list.bullet_char,
+                    tight: node_list.tight,
+                }),
+                children,
+            ),
+            ExNode {
+                data: ExNodeData::Item(ref node_list),
+                children,
+            } => build(
+                NodeValue::List(NodeList {
+                    // FIXME: node list attrs
+                    list_type: comrak::nodes::ListType::Bullet,
+                    marker_offset: node_list.marker_offset,
+                    padding: node_list.padding,
+                    start: node_list.start,
+                    delimiter: comrak::nodes::ListDelimType::Period,
+                    bullet_char: node_list.bullet_char,
+                    tight: node_list.tight,
+                }),
+                children,
+            ),
+            _ => todo!("exnode to_ast_node"),
         }
     }
 }
@@ -431,7 +512,47 @@ impl Encoder for ExNode {
                 data: ExNodeData::Text(text),
                 children,
             } => text.encode(env),
-            _ => todo!(),
+            ExNode {
+                data: ExNodeData::Paragraph,
+                children,
+            } => {
+                let doc: (String, ExNodeAttrs, ExNodeChildren) =
+                    ("paragraph".to_string(), vec![], children.to_vec());
+                doc.encode(env)
+            }
+            ExNode {
+                data: ExNodeData::Strong,
+                children,
+            } => {
+                let doc: (String, ExNodeAttrs, ExNodeChildren) =
+                    ("strong".to_string(), vec![], children.to_vec());
+                doc.encode(env)
+            }
+            ExNode {
+                data: ExNodeData::Emph,
+                children,
+            } => {
+                let doc: (String, ExNodeAttrs, ExNodeChildren) =
+                    ("emph".to_string(), vec![], children.to_vec());
+                doc.encode(env)
+            }
+            ExNode {
+                data: ExNodeData::List(node_list),
+                children,
+            } => {
+                let doc: (String, Term<'a>, ExNodeChildren) =
+                    ("list".to_string(), node_list.encode(env), children.to_vec());
+                doc.encode(env)
+            }
+            ExNode {
+                data: ExNodeData::Item(node_list),
+                children,
+            } => {
+                let doc: (String, Term<'a>, ExNodeChildren) =
+                    ("item".to_string(), node_list.encode(env), children.to_vec());
+                doc.encode(env)
+            }
+            _ => todo!("exnode encode"),
         }
     }
 }
@@ -439,8 +560,53 @@ impl Encoder for ExNode {
 impl Encoder for &ExNodeHeading {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
         vec![
-            ExNodeAttr("level".to_string(), ExNodeAttrValue::Level(self.level)),
-            ExNodeAttr("setext".to_string(), ExNodeAttrValue::Setext(self.setext)),
+            ExNodeAttr("level".to_string(), ExNodeAttrValue::U8(self.level)),
+            ExNodeAttr("setext".to_string(), ExNodeAttrValue::Bool(self.setext)),
+        ]
+        .encode(env)
+    }
+}
+
+impl ToString for ExListType {
+    fn to_string(&self) -> String {
+        match self {
+            ExListType::Bullet => "bullet".to_string(),
+            ExListType::Ordered => "ordered".to_string(),
+        }
+    }
+}
+
+impl ToString for ExListDelimType {
+    fn to_string(&self) -> String {
+        match self {
+            ExListDelimType::Period => "period".to_string(),
+            ExListDelimType::Paren => "paren".to_string(),
+        }
+    }
+}
+
+impl Encoder for &ExNodeList {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        vec![
+            ExNodeAttr(
+                "list_type".to_string(),
+                ExNodeAttrValue::Text(self.list_type.to_string()),
+            ),
+            ExNodeAttr(
+                "marker_offset".to_string(),
+                ExNodeAttrValue::Usize(self.marker_offset),
+            ),
+            ExNodeAttr("padding".to_string(), ExNodeAttrValue::Usize(self.padding)),
+            ExNodeAttr("start".to_string(), ExNodeAttrValue::Usize(self.start)),
+            ExNodeAttr(
+                "delimiter".to_string(),
+                ExNodeAttrValue::Text(self.delimiter.to_string()),
+            ),
+            ExNodeAttr(
+                "bullet_char".to_string(),
+                ExNodeAttrValue::U8(self.bullet_char),
+            ),
+            ExNodeAttr("tight".to_string(), ExNodeAttrValue::Bool(self.tight)),
         ]
         .encode(env)
     }
@@ -449,8 +615,9 @@ impl Encoder for &ExNodeHeading {
 impl<'a> From<&'a AstNode<'a>> for ExNode {
     fn from(ast_node: &'a AstNode<'a>) -> Self {
         let children = ast_node.children().map(Self::from).collect::<Vec<_>>();
-
         let node_value = &ast_node.data.borrow().value;
+
+        // println!("node_value: {:?}", node_value);
 
         match node_value {
             NodeValue::Document => Self {
@@ -468,7 +635,45 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
                 data: ExNodeData::Text(text.to_string()),
                 children: vec![],
             },
-            _ => todo!(),
+            NodeValue::Paragraph => Self {
+                data: ExNodeData::Paragraph,
+                children,
+            },
+            NodeValue::Strong => Self {
+                data: ExNodeData::Strong,
+                children,
+            },
+            NodeValue::Emph => Self {
+                data: ExNodeData::Emph,
+                children,
+            },
+            NodeValue::List(ref node_list) => Self {
+                data: ExNodeData::List(ExNodeList {
+                    // FIXME: node list attrs
+                    list_type: ExListType::Bullet,
+                    marker_offset: node_list.marker_offset,
+                    padding: node_list.padding,
+                    start: node_list.start,
+                    delimiter: ExListDelimType::Period,
+                    bullet_char: node_list.bullet_char,
+                    tight: node_list.tight,
+                }),
+                children,
+            },
+            NodeValue::Item(ref node_list) => Self {
+                data: ExNodeData::Item(ExNodeList {
+                    // FIXME: node list attrs
+                    list_type: ExListType::Bullet,
+                    marker_offset: node_list.marker_offset,
+                    padding: node_list.padding,
+                    start: node_list.start,
+                    delimiter: ExListDelimType::Period,
+                    bullet_char: node_list.bullet_char,
+                    tight: node_list.tight,
+                }),
+                children,
+            },
+            _ => todo!("exnode from astnode"),
         }
     }
 }

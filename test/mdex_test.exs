@@ -8,12 +8,84 @@ defmodule MDExTest do
   end
 
   test "parse" do
-    assert MDEx.parse_document("# hello") == {"document", [], [{"heading", [{"level", 1}, {"setext", false}], ["hello"]}]}
+    assert MDEx.parse_document("""
+             # hello
+             ## world
+
+             _It works_
+
+             **Languages**
+             - Elixir
+             - Rust
+           """) == {
+             "document",
+             [],
+             [
+               {"heading", [{"level", 1}, {"setext", false}], ["hello"]},
+               {"heading", [{"level", 2}, {"setext", false}], ["world"]},
+               {"paragraph", [], [{"emph", [], ["It works"]}]},
+               {"paragraph", [], [{"strong", [], ["Languages"]}]},
+               {"list",
+                [
+                  {"list_type", "bullet"},
+                  {"marker_offset", 2},
+                  {"padding", 2},
+                  {"start", 1},
+                  {"delimiter", "period"},
+                  {"bullet_char", 45},
+                  {"tight", true}
+                ],
+                [
+                  {"item",
+                   [
+                     {"list_type", "bullet"},
+                     {"marker_offset", 2},
+                     {"padding", 2},
+                     {"start", 1},
+                     {"delimiter", "period"},
+                     {"bullet_char", 45},
+                     {"tight", false}
+                   ], [{"paragraph", [], ["Elixir"]}]},
+                  {"item",
+                   [
+                     {"list_type", "bullet"},
+                     {"marker_offset", 2},
+                     {"padding", 2},
+                     {"start", 1},
+                     {"delimiter", "period"},
+                     {"bullet_char", 45},
+                     {"tight", false}
+                   ], [{"paragraph", [], ["Rust"]}]}
+                ]}
+             ]
+           }
   end
 
   test "format" do
-    ast = MDEx.parse_document("# hello")
-    assert MDEx.to_html(ast) == "<h1>hello</h1>\n"
+    ast =
+      MDEx.parse_document("""
+        # hello
+        ## world
+
+        _It works_
+
+        **Languages**
+        - Elixir
+        - Rust
+      """)
+
+    assert MDEx.to_html(ast) == """
+           <h1>hello</h1>
+           <h1>world</h1>
+           <p><em>It works</em></p>
+           <p><strong>Languages</strong></p>
+           <ul>
+           <ul>
+           Elixir</ul>
+           <ul>
+           Rust</ul>
+           </ul>
+           """
   end
 
   describe "syntax highlighting" do
