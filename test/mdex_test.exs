@@ -4,7 +4,6 @@ defmodule MDExTest do
 
   defp assert_output(input, expected, opts \\ []) do
     html = MDEx.to_html(input, opts)
-    # IO.puts(html) # debug
     assert html == expected
   end
 
@@ -14,7 +13,7 @@ defmodule MDExTest do
 
   test "format" do
     ast = MDEx.parse_document("# hello")
-    assert MDEx.to_html(ast) == "# hello"
+    assert MDEx.to_html(ast) == "<h1>hello</h1>\n"
   end
 
   describe "syntax highlighting" do

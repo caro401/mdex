@@ -16,7 +16,10 @@ use comrak::{
     Arena, ComrakPlugins, ExtensionOptions, ListStyleType, Options, ParseOptions, RenderOptions,
 };
 use inkjet_adapter::InkjetAdapter;
-use rustler::{Env, NifResult, NifTuple, NifUntaggedEnum, Term};
+use rustler::{
+    types::tuple::get_tuple, Binary, Decoder, Encoder, Env, NifResult, NifTuple, NifUntaggedEnum,
+    Term,
+};
 use types::options::*;
 
 rustler::init!(
@@ -106,25 +109,11 @@ fn render(env: Env, unsafe_html: String, sanitize: bool) -> NifResult<Term> {
     rustler::serde::to_term(env, html).map_err(|err| err.into())
 }
 
-#[derive(Debug, Clone, PartialEq, NifUntaggedEnum)]
-enum ExNode {
-    Document(ExNodeTuple),
-    Heading(ExNodeTuple),
-    Text(String),
-}
+type ExNodeAttrs = Vec<ExNodeAttr>;
+type ExNodeChildren = Vec<ExNode>;
 
 #[derive(Debug, Clone, PartialEq, NifTuple)]
-struct ExNodeTuple {
-    name: String,
-    attrs: Vec<ExNodeAttr>,
-    children: Vec<ExNode>,
-}
-
-#[derive(Debug, Clone, PartialEq, NifTuple)]
-struct ExNodeAttr {
-    name: String,
-    value: ExNodeAttrValue,
-}
+struct ExNodeAttr(String, ExNodeAttrValue);
 
 #[derive(Debug, Clone, PartialEq, NifUntaggedEnum)]
 enum ExNodeAttrValue {
@@ -132,7 +121,65 @@ enum ExNodeAttrValue {
     Setext(bool),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+enum ExNode {
+    Document(ExNodeChildren),
+    Heading(ExNodeHeading, ExNodeChildren),
+    Text(String),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ExNodeHeading {
+    level: u8,
+    setext: bool,
+}
+
 impl ExNode {
+    fn decode_term<'a>(term: Term<'a>) -> Self {
+        if term.is_tuple() {
+            let node: Vec<Term<'a>> = get_tuple(term).unwrap();
+
+            match node.len() {
+                3 => ExNode::decode_node(node),
+                _ => todo!(),
+            }
+        } else if term.is_binary() {
+            let text: String = term.decode().unwrap();
+            ExNode::Text(text)
+        } else {
+            todo!()
+        }
+    }
+
+    fn decode_node<'a>(node: Vec<Term<'a>>) -> Self {
+        // FIXME: find a better way to convert Term to String
+        let name = node.get(0).unwrap();
+        let name = Binary::from_term(*name).unwrap().as_slice();
+        let name = String::from_utf8(name.to_vec()).unwrap();
+
+        let children: Vec<Term<'a>> = node.get(2).unwrap().decode::<Vec<Term>>().unwrap();
+
+        let children: Vec<_> = children
+            .iter()
+            .map(|child| {
+                let c = ExNode::decode_term(*child);
+                c
+            })
+            .collect();
+
+        match name.as_str() {
+            "document" => ExNode::Document(children),
+            "heading" => ExNode::Heading(
+                ExNodeHeading {
+                    level: 1,
+                    setext: false,
+                },
+                children,
+            ),
+            &_ => todo!(),
+        }
+    }
+
     // TODO: options
     pub fn parse_document(md: &str) -> Self {
         let arena = Arena::new();
@@ -140,26 +187,12 @@ impl ExNode {
         Self::from(root)
     }
 
-    // TODO: options
     pub fn format_document(&self) -> String {
         let arena = Arena::new();
 
-        if let ExNode::Document(ExNodeTuple {
-            name,
-            attrs,
-            children,
-        }) = self
-        {
+        if let ExNode::Document(children) = self {
             let mut output = vec![];
-            let ast_node = self.to_ast_nodee(
-                &arena,
-                ExNode::Document(ExNodeTuple {
-                    name: name.clone(),
-                    attrs: attrs.to_vec(),
-                    children: children.to_vec(),
-                }),
-            );
-
+            let ast_node = self.to_ast_nodee(&arena, ExNode::Document(children.to_vec()));
             comrak::html::format_document(ast_node, &Options::default(), &mut output).unwrap();
             String::from_utf8(output).unwrap()
         } else {
@@ -192,27 +225,56 @@ impl ExNode {
         };
 
         match exnode {
-            ExNode::Document(ExNodeTuple {
-                name,
-                attrs,
-                children,
-            }) => build(NodeValue::Document, children),
+            ExNode::Document(children) => build(NodeValue::Document, children),
 
-            ExNode::Heading(ExNodeTuple {
-                name,
-                attrs,
-                children,
-            }) => build(
+            ExNode::Heading(ref heading, children) => build(
                 NodeValue::Heading(NodeHeading {
-                    level: 1,
-                    setext: false,
+                    level: heading.level,
+                    setext: heading.setext,
                 }),
                 children,
             ),
 
             ExNode::Text(text) => build(NodeValue::Text(text.to_owned()), vec![]),
-
         }
+    }
+}
+
+impl<'a> Decoder<'a> for ExNode {
+    fn decode(term: Term<'a>) -> NifResult<Self> {
+        let node = ExNode::decode_term(term);
+        Ok(node)
+    }
+}
+
+impl Encoder for ExNode {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        match self {
+            ExNode::Document(children) => {
+                let doc: (String, ExNodeAttrs, ExNodeChildren) =
+                    ("document".to_string(), vec![], children.to_vec());
+                doc.encode(env)
+            }
+            ExNode::Heading(heading, children) => {
+                let doc: (String, Term<'a>, ExNodeChildren) = (
+                    "heading".to_string(),
+                    heading.encode(env),
+                    children.to_vec(),
+                );
+                doc.encode(env)
+            }
+            ExNode::Text(ref text) => text.encode(env),
+        }
+    }
+}
+
+impl Encoder for &ExNodeHeading {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        vec![
+            ExNodeAttr("level".to_string(), ExNodeAttrValue::Level(self.level)),
+            ExNodeAttr("setext".to_string(), ExNodeAttrValue::Setext(self.setext)),
+        ]
+        .encode(env)
     }
 }
 
@@ -226,25 +288,14 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
         let node_value = &ast_node.data.borrow().value;
 
         match node_value {
-            NodeValue::Document => Self::Document(ExNodeTuple {
-                name: "document".to_string(),
-                attrs: vec![],
+            NodeValue::Document => Self::Document(children),
+            NodeValue::Heading(ref heading) => Self::Heading(
+                ExNodeHeading {
+                    level: heading.level,
+                    setext: heading.setext,
+                },
                 children,
-            }),
-            NodeValue::Heading(ref heading) => Self::Heading(ExNodeTuple {
-                name: "heading".to_string(),
-                attrs: vec![
-                    ExNodeAttr {
-                        name: "level".to_string(),
-                        value: ExNodeAttrValue::Level(heading.level),
-                    },
-                    ExNodeAttr {
-                        name: "setext".to_string(),
-                        value: ExNodeAttrValue::Setext(heading.setext),
-                    },
-                ],
-                children,
-            }),
+            ),
             NodeValue::Text(ref text) => Self::Text(text.to_string()),
             _ => todo!(),
         }
@@ -253,15 +304,12 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
 
 #[rustler::nif(schedule = "DirtyCpu")]
 fn parse_document<'a>(env: Env<'a>, md: &str) -> ExNode {
-    let node = ExNode::parse_document(md);
-    println!("parsed: {:?}", node);
-    node
+    ExNode::parse_document(md)
 }
 
 #[rustler::nif(schedule = "DirtyCpu")]
 fn ast_to_html(ast: ExNode) -> String {
-    println!("ast...: {:?}", ast);
-    ExNode::format_document(&ast)
+    ast.format_document()
 }
 
 #[cfg(test)]

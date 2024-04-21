@@ -10,7 +10,7 @@ defmodule MDEx do
 
   def parse_document(markdown) do
     Native.parse_document(markdown)
- end
+  end
 
   @doc """
   Convert `markdown` to HTML.

@@ -18,8 +18,7 @@ defmodule MDEx.MixProject do
       aliases: aliases(),
       name: "MDEx",
       homepage_url: "https://github.com/leandrocp/mdex",
-      description:
-        "A fast 100% CommonMark-compatible GitHub Flavored Markdown parser and formatter."
+      description: "A fast 100% CommonMark-compatible GitHub Flavored Markdown parser and formatter."
     ]
   end
 
