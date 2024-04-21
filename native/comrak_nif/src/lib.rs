@@ -122,9 +122,15 @@ enum ExNodeAttrValue {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum ExNode {
-    Document(ExNodeChildren),
-    Heading(ExNodeHeading, ExNodeChildren),
+struct ExNode {
+    data: ExNodeData,
+    children: ExNodeChildren,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum ExNodeData {
+    Document,
+    Heading(ExNodeHeading),
     Text(String),
 }
 
@@ -145,7 +151,10 @@ impl ExNode {
             }
         } else if term.is_binary() {
             let text: String = term.decode().unwrap();
-            ExNode::Text(text)
+            ExNode {
+                data: ExNodeData::Text(text),
+                children: vec![],
+            }
         } else {
             todo!()
         }
@@ -168,14 +177,17 @@ impl ExNode {
             .collect();
 
         match name.as_str() {
-            "document" => ExNode::Document(children),
-            "heading" => ExNode::Heading(
-                ExNodeHeading {
+            "document" => ExNode {
+                data: ExNodeData::Document,
+                children,
+            },
+            "heading" => ExNode {
+                data: ExNodeData::Heading(ExNodeHeading {
                     level: 1,
                     setext: false,
-                },
+                }),
                 children,
-            ),
+            },
             &_ => todo!(),
         }
     }
@@ -190,9 +202,19 @@ impl ExNode {
     pub fn format_document(&self) -> String {
         let arena = Arena::new();
 
-        if let ExNode::Document(children) = self {
+        if let ExNode {
+            data: ExNodeData::Document,
+            children,
+        } = self
+        {
             let mut output = vec![];
-            let ast_node = self.to_ast_nodee(&arena, ExNode::Document(children.to_vec()));
+            let ast_node = self.to_ast_nodee(
+                &arena,
+                ExNode {
+                    data: ExNodeData::Document,
+                    children: children.to_vec(),
+                },
+            );
             comrak::html::format_document(ast_node, &Options::default(), &mut output).unwrap();
             String::from_utf8(output).unwrap()
         } else {
@@ -225,9 +247,15 @@ impl ExNode {
         };
 
         match exnode {
-            ExNode::Document(children) => build(NodeValue::Document, children),
+            ExNode {
+                data: ExNodeData::Document,
+                children,
+            } => build(NodeValue::Document, children),
 
-            ExNode::Heading(ref heading, children) => build(
+            ExNode {
+                data: ExNodeData::Heading(ref heading),
+                children,
+            } => build(
                 NodeValue::Heading(NodeHeading {
                     level: heading.level,
                     setext: heading.setext,
@@ -235,7 +263,10 @@ impl ExNode {
                 children,
             ),
 
-            ExNode::Text(text) => build(NodeValue::Text(text.to_owned()), vec![]),
+            ExNode {
+                data: ExNodeData::Text(text),
+                children,
+            } => build(NodeValue::Text(text.to_owned()), vec![]),
         }
     }
 }
@@ -250,12 +281,18 @@ impl<'a> Decoder<'a> for ExNode {
 impl Encoder for ExNode {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
         match self {
-            ExNode::Document(children) => {
+            ExNode {
+                data: ExNodeData::Document,
+                children,
+            } => {
                 let doc: (String, ExNodeAttrs, ExNodeChildren) =
                     ("document".to_string(), vec![], children.to_vec());
                 doc.encode(env)
             }
-            ExNode::Heading(heading, children) => {
+            ExNode {
+                data: ExNodeData::Heading(heading),
+                children,
+            } => {
                 let doc: (String, Term<'a>, ExNodeChildren) = (
                     "heading".to_string(),
                     heading.encode(env),
@@ -263,7 +300,10 @@ impl Encoder for ExNode {
                 );
                 doc.encode(env)
             }
-            ExNode::Text(ref text) => text.encode(env),
+            ExNode {
+                data: ExNodeData::Text(text),
+                children,
+            } => text.encode(env),
         }
     }
 }
@@ -288,15 +328,21 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
         let node_value = &ast_node.data.borrow().value;
 
         match node_value {
-            NodeValue::Document => Self::Document(children),
-            NodeValue::Heading(ref heading) => Self::Heading(
-                ExNodeHeading {
+            NodeValue::Document => Self {
+                data: ExNodeData::Document,
+                children: children,
+            },
+            NodeValue::Heading(ref heading) => Self {
+                data: ExNodeData::Heading(ExNodeHeading {
                     level: heading.level,
                     setext: heading.setext,
-                },
-                children,
-            ),
-            NodeValue::Text(ref text) => Self::Text(text.to_string()),
+                }),
+                children: children,
+            },
+            NodeValue::Text(ref text) => Self {
+                data: ExNodeData::Text(text.to_string()),
+                children: vec![],
+            },
             _ => todo!(),
         }
     }
