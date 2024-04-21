@@ -162,7 +162,7 @@ impl ExNode {
 
     fn decode_node<'a>(node: Vec<Term<'a>>) -> Self {
         // FIXME: find a better way to convert Term to String
-        let name = node.get(0).unwrap();
+        let name = node.first().unwrap();
         let name = Binary::from_term(*name).unwrap().as_slice();
         let name = String::from_utf8(name.to_vec()).unwrap();
 
@@ -170,10 +170,7 @@ impl ExNode {
 
         let children: Vec<_> = children
             .iter()
-            .map(|child| {
-                let c = ExNode::decode_term(*child);
-                c
-            })
+            .map(|child| ExNode::decode_term(*child))
             .collect();
 
         match name.as_str() {
@@ -239,7 +236,7 @@ impl ExNode {
             let parent = self.ast(arena, node_value);
 
             for child in children {
-                let ast_child = self.to_ast_nodee(&arena, child);
+                let ast_child = self.to_ast_nodee(arena, child);
                 parent.append(ast_child);
             }
 
@@ -320,24 +317,21 @@ impl Encoder for &ExNodeHeading {
 
 impl<'a> From<&'a AstNode<'a>> for ExNode {
     fn from(ast_node: &'a AstNode<'a>) -> Self {
-        let children = ast_node
-            .children()
-            .map(|child| Self::from(child))
-            .collect::<Vec<_>>();
+        let children = ast_node.children().map(Self::from).collect::<Vec<_>>();
 
         let node_value = &ast_node.data.borrow().value;
 
         match node_value {
             NodeValue::Document => Self {
                 data: ExNodeData::Document,
-                children: children,
+                children,
             },
             NodeValue::Heading(ref heading) => Self {
                 data: ExNodeData::Heading(ExNodeHeading {
                     level: heading.level,
                     setext: heading.setext,
                 }),
-                children: children,
+                children,
             },
             NodeValue::Text(ref text) => Self {
                 data: ExNodeData::Text(text.to_string()),
@@ -349,7 +343,7 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
 }
 
 #[rustler::nif(schedule = "DirtyCpu")]
-fn parse_document<'a>(env: Env<'a>, md: &str) -> ExNode {
+fn parse_document(env: Env<'_>, md: &str) -> ExNode {
     ExNode::parse_document(md)
 }
 
