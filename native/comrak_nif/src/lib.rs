@@ -109,6 +109,156 @@ fn render(env: Env, unsafe_html: String, sanitize: bool) -> NifResult<Term> {
     rustler::serde::to_term(env, html).map_err(|err| err.into())
 }
 
+#[derive(Debug, Clone, PartialEq)]
+struct ExNode {
+    data: ExNodeData,
+    children: ExNodeChildren,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum ExNodeData {
+    Document,
+    FrontMatter(String),
+    BlockQuote,
+    List(ExNodeList),
+    Item(ExNodeList),
+    DescriptionList,
+    DescriptionItem(ExNodeDescriptionItem),
+    DescriptionTerm,
+    DescriptionDetails,
+    CodeBlock(ExNodeCodeBlock),
+    HtmlBlock(ExNodeHtmlBlock),
+    Paragraph,
+    Heading(ExNodeHeading),
+    ThematicBreak,
+    FootnoteDefinition(ExNodeFootnoteDefinition),
+    Table(ExNodeTable),
+    TableRow(bool),
+    TableCell,
+    Text(String),
+    TaskItem(Option<char>),
+    SoftBreak,
+    LineBreak,
+    Code(ExNodeCode),
+    HtmlInline(String),
+    Emph,
+    Strong,
+    Strikethrough,
+    Superscript,
+    Link(ExNodeLink),
+    Image(ExNodeLink),
+    FootnoteReference(ExNodeFootnoteReference),
+    ShortCode(String),
+    Math(ExNodeMath),
+    MultilineBlockQuote(ExNodeMultilineBlockQuote),
+    Escaped,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ExNodeList {
+    list_type: ExListType,
+    marker_offset: usize,
+    padding: usize,
+    start: usize,
+    delimiter: ExListDelimType,
+    bullet_char: u8,
+    tight: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum ExListType {
+    Bullet,
+    Ordered,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum ExListDelimType {
+    Period,
+    Paren,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ExNodeDescriptionItem {
+    marker_offset: usize,
+    padding: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ExNodeCodeBlock {
+    fenced: bool,
+    fence_char: u8,
+    fence_length: usize,
+    fence_offset: usize,
+    info: String,
+    literal: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ExNodeHtmlBlock {
+    block_type: u8,
+    literal: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ExNodeHeading {
+    level: u8,
+    setext: bool,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ExNodeFootnoteDefinition {
+    name: String,
+    total_references: u32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ExNodeTable {
+    alignments: Vec<ExTableAlignment>,
+    num_columns: usize,
+    num_rows: usize,
+    num_nonempty_cells: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ExTableAlignment {
+    None,
+    Left,
+    Center,
+    Right,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ExNodeCode {
+    num_backticks: usize,
+    literal: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ExNodeLink {
+    url: String,
+    title: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ExNodeFootnoteReference {
+    name: String,
+    ref_num: u32,
+    ix: u32,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ExNodeMath {
+    dollar_math: bool,
+    display_math: bool,
+    literal: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct ExNodeMultilineBlockQuote {
+    fence_length: usize,
+    fence_offset: usize,
+}
+
 type ExNodeAttrs = Vec<ExNodeAttr>;
 type ExNodeChildren = Vec<ExNode>;
 
@@ -119,25 +269,6 @@ struct ExNodeAttr(String, ExNodeAttrValue);
 enum ExNodeAttrValue {
     Level(u8),
     Setext(bool),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct ExNode {
-    data: ExNodeData,
-    children: ExNodeChildren,
-}
-
-#[derive(Debug, Clone, PartialEq)]
-enum ExNodeData {
-    Document,
-    Heading(ExNodeHeading),
-    Text(String),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct ExNodeHeading {
-    level: u8,
-    setext: bool,
 }
 
 impl ExNode {
@@ -248,7 +379,6 @@ impl ExNode {
                 data: ExNodeData::Document,
                 children,
             } => build(NodeValue::Document, children),
-
             ExNode {
                 data: ExNodeData::Heading(ref heading),
                 children,
@@ -259,11 +389,11 @@ impl ExNode {
                 }),
                 children,
             ),
-
             ExNode {
                 data: ExNodeData::Text(text),
                 children,
             } => build(NodeValue::Text(text.to_owned()), vec![]),
+            _ => todo!(),
         }
     }
 }
@@ -301,6 +431,7 @@ impl Encoder for ExNode {
                 data: ExNodeData::Text(text),
                 children,
             } => text.encode(env),
+            _ => todo!(),
         }
     }
 }
