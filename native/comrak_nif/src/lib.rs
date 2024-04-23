@@ -361,10 +361,14 @@ impl ExNode {
         }
     }
 
-    // TODO: options
-    pub fn parse_document(md: &str) -> Self {
+    pub fn parse_document(md: &str, options: ExOptions) -> Self {
+        let comrak_options = comrak::Options {
+            extension: extension_options_from_ex_options(&options),
+            parse: parse_options_from_ex_options(&options),
+            render: render_options_from_ex_options(&options),
+        };
         let arena = Arena::new();
-        let root = comrak::parse_document(&arena, md, &comrak::ComrakOptions::default());
+        let root = comrak::parse_document(&arena, md, &comrak_options);
         Self::from(root)
     }
 
@@ -617,7 +621,7 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
         let children = ast_node.children().map(Self::from).collect::<Vec<_>>();
         let node_value = &ast_node.data.borrow().value;
 
-        // println!("node_value: {:?}", node_value);
+        println!("node_value: {:?}", node_value);
 
         match node_value {
             NodeValue::Document => Self {
@@ -679,8 +683,8 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
 }
 
 #[rustler::nif(schedule = "DirtyCpu")]
-fn parse_document(env: Env<'_>, md: &str) -> ExNode {
-    ExNode::parse_document(md)
+fn parse_document(env: Env<'_>, md: &str, options: ExOptions) -> ExNode {
+    ExNode::parse_document(md, options)
 }
 
 #[rustler::nif(schedule = "DirtyCpu")]

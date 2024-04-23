@@ -8,8 +8,18 @@ defmodule MDEx do
 
   alias MDEx.Native
 
-  def parse_document(markdown) do
-    Native.parse_document(markdown)
+  @type md_tree :: [md_node()]
+  @type md_node :: md_element() | md_text()
+  @type md_element :: {name :: String.t(), md_attributes(), [md_node()]}
+  @type md_text :: String.t()
+  @type md_attributes :: [{String.t(), term()}]
+
+  @doc """
+  TODO
+  """
+  @spec parse_document(String.t()) :: {:ok, md_tree()} | {:error, term()}
+  def parse_document(markdown, opts \\ []) do
+    Native.parse_document(markdown, comrak_options(opts))
   end
 
   @doc """
@@ -70,19 +80,21 @@ defmodule MDEx do
 
   """
   @spec to_html(String.t(), keyword()) :: String.t()
-  def to_html(markdown, opts) when is_binary(markdown) do
+  def to_html(markdown, opts) when is_binary(markdown) and is_list(opts) do
+    Native.to_html_with_options(markdown, comrak_options(opts))
+  end
+
+  defp comrak_options(opts) do
     extension = Keyword.get(opts, :extension, %{})
     parse = Keyword.get(opts, :parse, %{})
     render = Keyword.get(opts, :render, %{})
     features = Keyword.get(opts, :features, %{})
 
-    opts = %MDEx.Types.Options{
+    %MDEx.Types.Options{
       extension: struct(MDEx.Types.ExtensionOptions, extension),
       parse: struct(MDEx.Types.ParseOptions, parse),
       render: struct(MDEx.Types.RenderOptions, render),
       features: struct(MDEx.Types.FeaturesOptions, features)
     }
-
-    Native.to_html_with_options(markdown, opts)
   end
 end
