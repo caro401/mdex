@@ -8,57 +8,63 @@ defmodule MDExTest do
   end
 
   test "parse" do
-    assert MDEx.parse_document("""
+    assert MDEx.parse_document(
+             """
+             ---
+             title :test
+             ---
+
              # hello
              ## world
 
              _It works_
 
              **Languages**
-             - Elixir
-             - Rust
-           """) == {
-             "document",
-             [],
-             [
-               {"heading", [{"level", 1}, {"setext", false}], ["hello"]},
-               {"heading", [{"level", 2}, {"setext", false}], ["world"]},
-               {"paragraph", [], [{"emph", [], ["It works"]}]},
-               {"paragraph", [], [{"strong", [], ["Languages"]}]},
-               {"list",
-                [
-                  {"list_type", "bullet"},
-                  {"marker_offset", 2},
-                  {"padding", 2},
-                  {"start", 1},
-                  {"delimiter", "period"},
-                  {"bullet_char", 45},
-                  {"tight", true}
-                ],
-                [
-                  {"item",
-                   [
-                     {"list_type", "bullet"},
-                     {"marker_offset", 2},
-                     {"padding", 2},
-                     {"start", 1},
-                     {"delimiter", "period"},
-                     {"bullet_char", 45},
-                     {"tight", false}
-                   ], [{"paragraph", [], ["Elixir"]}]},
-                  {"item",
-                   [
-                     {"list_type", "bullet"},
-                     {"marker_offset", 2},
-                     {"padding", 2},
-                     {"start", 1},
-                     {"delimiter", "period"},
-                     {"bullet_char", 45},
-                     {"tight", false}
-                   ], [{"paragraph", [], ["Rust"]}]}
-                ]}
-             ]
-           }
+               - Elixir
+               - Rust
+             """,
+             extension: [front_matter_delimiter: "---"]
+           ) ==
+             {"document", [],
+              [
+                {"front_matter", [{"content", "---\ntitle :test\n---\n\n"}], []},
+                {"heading", [{"level", 1}, {"setext", false}], ["hello"]},
+                {"heading", [{"level", 2}, {"setext", false}], ["world"]},
+                {"paragraph", [], [{"emph", [], ["It works"]}]},
+                {"paragraph", [], [{"strong", [], ["Languages"]}]},
+                {"list",
+                 [
+                   {"list_type", "bullet"},
+                   {"marker_offset", 2},
+                   {"padding", 2},
+                   {"start", 1},
+                   {"delimiter", "period"},
+                   {"bullet_char", 45},
+                   {"tight", true}
+                 ],
+                 [
+                   {"item",
+                    [
+                      {"list_type", "bullet"},
+                      {"marker_offset", 2},
+                      {"padding", 2},
+                      {"start", 1},
+                      {"delimiter", "period"},
+                      {"bullet_char", 45},
+                      {"tight", false}
+                    ], [{"paragraph", [], ["Elixir"]}]},
+                   {"item",
+                    [
+                      {"list_type", "bullet"},
+                      {"marker_offset", 2},
+                      {"padding", 2},
+                      {"start", 1},
+                      {"delimiter", "period"},
+                      {"bullet_char", 45},
+                      {"tight", false}
+                    ], [{"paragraph", [], ["Rust"]}]}
+                 ]}
+              ]}
   end
 
   test "format" do

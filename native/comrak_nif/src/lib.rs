@@ -492,6 +492,8 @@ impl<'a> Decoder<'a> for ExNode {
 
 impl Encoder for ExNode {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        // println!("encode: {:?}", self);
+
         match self {
             ExNode {
                 data: ExNodeData::Document,
@@ -499,6 +501,29 @@ impl Encoder for ExNode {
             } => {
                 let doc: (String, ExNodeAttrs, ExNodeChildren) =
                     ("document".to_string(), vec![], children.to_vec());
+                doc.encode(env)
+            }
+            ExNode {
+                data: ExNodeData::ThematicBreak,
+                children,
+            } => {
+                let doc: (String, ExNodeAttrs, ExNodeChildren) =
+                    ("thematic_break".to_string(), vec![], children.to_vec());
+                doc.encode(env)
+            }
+            ExNode {
+                data: ExNodeData::FrontMatter(delimiter),
+                children,
+            } => {
+                let doc: (String, Term<'a>, ExNodeChildren) = (
+                    "front_matter".to_string(),
+                    vec![ExNodeAttr(
+                        "content".to_string(),
+                        ExNodeAttrValue::Text(delimiter.to_string()),
+                    )]
+                    .encode(env),
+                    children.to_vec(),
+                );
                 doc.encode(env)
             }
             ExNode {
@@ -628,11 +653,19 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
                 data: ExNodeData::Document,
                 children,
             },
+            NodeValue::FrontMatter(ref content) => Self {
+                data: ExNodeData::FrontMatter(content.to_string()),
+                children,
+            },
             NodeValue::Heading(ref heading) => Self {
                 data: ExNodeData::Heading(ExNodeHeading {
                     level: heading.level,
                     setext: heading.setext,
                 }),
+                children,
+            },
+            NodeValue::ThematicBreak => Self {
+                data: ExNodeData::ThematicBreak,
                 children,
             },
             NodeValue::Text(ref text) => Self {
