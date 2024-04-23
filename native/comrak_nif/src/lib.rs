@@ -561,6 +561,17 @@ impl Encoder for ExNode {
             // description details
 
             // code block
+            ExNode {
+                data: ExNodeData::CodeBlock(code_block),
+                children,
+            } => {
+                let doc: (String, Term<'a>, ExNodeChildren) = (
+                    "code_block".to_string(),
+                    code_block.encode(env),
+                    children.to_vec(),
+                );
+                doc.encode(env)
+            }
 
             // html block
 
@@ -673,6 +684,29 @@ impl Encoder for &ExNodeHeading {
     }
 }
 
+impl Encoder for &ExNodeCodeBlock {
+    fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        vec![
+            ExNodeAttr("fenced".to_string(), ExNodeAttrValue::Bool(self.fenced)),
+            ExNodeAttr(
+                "fence_char".to_string(),
+                ExNodeAttrValue::U8(self.fence_char),
+            ),
+            ExNodeAttr(
+                "fence_length".to_string(),
+                ExNodeAttrValue::Usize(self.fence_length),
+            ),
+            ExNodeAttr(
+                "fence_offset".to_string(),
+                ExNodeAttrValue::Usize(self.fence_offset),
+            ),
+            ExNodeAttr("info".to_string(), ExNodeAttrValue::Text(self.info.to_string())),
+            ExNodeAttr("literal".to_string(), ExNodeAttrValue::Text(self.literal.to_string())),
+        ]
+        .encode(env)
+    }
+}
+
 impl ToString for ExListType {
     fn to_string(&self) -> String {
         match self {
@@ -769,6 +803,18 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
                     tight: node_list.tight,
                 }),
                 children,
+            },
+
+            NodeValue::CodeBlock(ref code_block) => Self {
+                data: ExNodeData::CodeBlock(ExNodeCodeBlock {
+                    fenced: code_block.fenced,
+                    fence_char: code_block.fence_char,
+                    fence_length: code_block.fence_length,
+                    fence_offset: code_block.fence_offset,
+                    info: code_block.info.to_string(),
+                    literal: code_block.literal.to_string(),
+                }),
+                children
             },
 
             NodeValue::Paragraph => Self {

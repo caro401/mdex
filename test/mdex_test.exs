@@ -71,7 +71,16 @@ defmodule MDExTest do
                       {"bullet_char", 45},
                       {"tight", false}
                     ], [{"paragraph", [], ["Rust"]}]}
-                 ]}
+                 ]},
+                {"code_block",
+                 [
+                   {"fenced", true},
+                   {"fence_char", 96},
+                   {"fence_length", 3},
+                   {"fence_offset", 0},
+                   {"info", "elixir"},
+                   {"literal", "String.trim(\" MDEx \")\n"}
+                 ], []}
               ]}
   end
 
