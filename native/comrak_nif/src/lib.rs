@@ -495,6 +495,7 @@ impl Encoder for ExNode {
         // println!("encode: {:?}", self);
 
         match self {
+            // document
             ExNode {
                 data: ExNodeData::Document,
                 children,
@@ -503,14 +504,8 @@ impl Encoder for ExNode {
                     ("document".to_string(), vec![], children.to_vec());
                 doc.encode(env)
             }
-            ExNode {
-                data: ExNodeData::ThematicBreak,
-                children,
-            } => {
-                let doc: (String, ExNodeAttrs, ExNodeChildren) =
-                    ("thematic_break".to_string(), vec![], children.to_vec());
-                doc.encode(env)
-            }
+
+            // front matter
             ExNode {
                 data: ExNodeData::FrontMatter(delimiter),
                 children,
@@ -526,6 +521,60 @@ impl Encoder for ExNode {
                 );
                 doc.encode(env)
             }
+
+            // block quote
+            ExNode {
+                data: ExNodeData::BlockQuote,
+                children,
+            } => {
+                let doc: (String, ExNodeAttrs, ExNodeChildren) =
+                    ("block_quote".to_string(), vec![], children.to_vec());
+                doc.encode(env)
+            }
+
+            // list
+            ExNode {
+                data: ExNodeData::List(node_list),
+                children,
+            } => {
+                let doc: (String, Term<'a>, ExNodeChildren) =
+                    ("list".to_string(), node_list.encode(env), children.to_vec());
+                doc.encode(env)
+            }
+
+            // item
+            ExNode {
+                data: ExNodeData::Item(node_list),
+                children,
+            } => {
+                let doc: (String, Term<'a>, ExNodeChildren) =
+                    ("item".to_string(), node_list.encode(env), children.to_vec());
+                doc.encode(env)
+            }
+
+            // description list
+
+            // description item
+
+            // description term
+
+            // description details
+
+            // code block
+
+            // html block
+
+            // paragraph
+            ExNode {
+                data: ExNodeData::Paragraph,
+                children,
+            } => {
+                let doc: (String, ExNodeAttrs, ExNodeChildren) =
+                    ("paragraph".to_string(), vec![], children.to_vec());
+                doc.encode(env)
+            }
+
+            // heading
             ExNode {
                 data: ExNodeData::Heading(heading),
                 children,
@@ -537,26 +586,42 @@ impl Encoder for ExNode {
                 );
                 doc.encode(env)
             }
+
+            // thematic break
+            ExNode {
+                data: ExNodeData::ThematicBreak,
+                children,
+            } => {
+                let doc: (String, ExNodeAttrs, ExNodeChildren) =
+                    ("thematic_break".to_string(), vec![], children.to_vec());
+                doc.encode(env)
+            }
+
+            // footnote definition
+
+            // table
+
+            // table row
+
+            // table cell
+
+            // text
             ExNode {
                 data: ExNodeData::Text(text),
                 children,
             } => text.encode(env),
-            ExNode {
-                data: ExNodeData::Paragraph,
-                children,
-            } => {
-                let doc: (String, ExNodeAttrs, ExNodeChildren) =
-                    ("paragraph".to_string(), vec![], children.to_vec());
-                doc.encode(env)
-            }
-            ExNode {
-                data: ExNodeData::Strong,
-                children,
-            } => {
-                let doc: (String, ExNodeAttrs, ExNodeChildren) =
-                    ("strong".to_string(), vec![], children.to_vec());
-                doc.encode(env)
-            }
+
+            // task item
+
+            // soft break
+
+            // line break
+
+            // code
+
+            // html inline
+
+            // emph
             ExNode {
                 data: ExNodeData::Emph,
                 children,
@@ -565,22 +630,34 @@ impl Encoder for ExNode {
                     ("emph".to_string(), vec![], children.to_vec());
                 doc.encode(env)
             }
+
+            // strong
             ExNode {
-                data: ExNodeData::List(node_list),
+                data: ExNodeData::Strong,
                 children,
             } => {
-                let doc: (String, Term<'a>, ExNodeChildren) =
-                    ("list".to_string(), node_list.encode(env), children.to_vec());
+                let doc: (String, ExNodeAttrs, ExNodeChildren) =
+                    ("strong".to_string(), vec![], children.to_vec());
                 doc.encode(env)
             }
-            ExNode {
-                data: ExNodeData::Item(node_list),
-                children,
-            } => {
-                let doc: (String, Term<'a>, ExNodeChildren) =
-                    ("item".to_string(), node_list.encode(env), children.to_vec());
-                doc.encode(env)
-            }
+
+            // strikethrough
+
+            // superscript
+
+            // link
+
+            // image
+
+            // footnote reference
+
+            // short code
+
+            // math
+
+            // multiline block quote
+
+            // escaped
             _ => todo!("exnode encode"),
         }
     }
@@ -653,37 +730,18 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
                 data: ExNodeData::Document,
                 children,
             },
+
             NodeValue::FrontMatter(ref content) => Self {
                 data: ExNodeData::FrontMatter(content.to_string()),
                 children,
             },
-            NodeValue::Heading(ref heading) => Self {
-                data: ExNodeData::Heading(ExNodeHeading {
-                    level: heading.level,
-                    setext: heading.setext,
-                }),
+
+            NodeValue::BlockQuote => Self {
+                data: ExNodeData::BlockQuote,
                 children,
             },
-            NodeValue::ThematicBreak => Self {
-                data: ExNodeData::ThematicBreak,
-                children,
-            },
-            NodeValue::Text(ref text) => Self {
-                data: ExNodeData::Text(text.to_string()),
-                children: vec![],
-            },
-            NodeValue::Paragraph => Self {
-                data: ExNodeData::Paragraph,
-                children,
-            },
-            NodeValue::Strong => Self {
-                data: ExNodeData::Strong,
-                children,
-            },
-            NodeValue::Emph => Self {
-                data: ExNodeData::Emph,
-                children,
-            },
+
+            // FIXME: list attrs
             NodeValue::List(ref node_list) => Self {
                 data: ExNodeData::List(ExNodeList {
                     // FIXME: node list attrs
@@ -697,6 +755,8 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
                 }),
                 children,
             },
+
+            // FIXME: item attrs
             NodeValue::Item(ref node_list) => Self {
                 data: ExNodeData::Item(ExNodeList {
                     // FIXME: node list attrs
@@ -710,6 +770,40 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
                 }),
                 children,
             },
+
+            NodeValue::Paragraph => Self {
+                data: ExNodeData::Paragraph,
+                children,
+            },
+
+            NodeValue::Heading(ref heading) => Self {
+                data: ExNodeData::Heading(ExNodeHeading {
+                    level: heading.level,
+                    setext: heading.setext,
+                }),
+                children,
+            },
+
+            NodeValue::ThematicBreak => Self {
+                data: ExNodeData::ThematicBreak,
+                children,
+            },
+
+            NodeValue::Text(ref text) => Self {
+                data: ExNodeData::Text(text.to_string()),
+                children: vec![],
+            },
+
+            NodeValue::Emph => Self {
+                data: ExNodeData::Emph,
+                children,
+            },
+
+            NodeValue::Strong => Self {
+                data: ExNodeData::Strong,
+                children,
+            },
+
             _ => todo!("exnode from astnode"),
         }
     }

@@ -14,24 +14,32 @@ defmodule MDExTest do
              title :test
              ---
 
-             # hello
-             ## world
+             # heading 1
+             ## heading 2
 
-             _It works_
+             > block quote
 
-             **Languages**
+             _emph_
+
+             **strong**
                - Elixir
                - Rust
+
+             ```elixir
+             String.trim(" MDEx ")
+             ```
+
              """,
              extension: [front_matter_delimiter: "---"]
            ) ==
              {"document", [],
               [
                 {"front_matter", [{"content", "---\ntitle :test\n---\n\n"}], []},
-                {"heading", [{"level", 1}, {"setext", false}], ["hello"]},
-                {"heading", [{"level", 2}, {"setext", false}], ["world"]},
-                {"paragraph", [], [{"emph", [], ["It works"]}]},
-                {"paragraph", [], [{"strong", [], ["Languages"]}]},
+                {"heading", [{"level", 1}, {"setext", false}], ["heading 1"]},
+                {"heading", [{"level", 2}, {"setext", false}], ["heading 2"]},
+                {"block_quote", [], [{"paragraph", [], ["block quote"]}]},
+                {"paragraph", [], [{"emph", [], ["emph"]}]},
+                {"paragraph", [], [{"strong", [], ["strong"]}]},
                 {"list",
                  [
                    {"list_type", "bullet"},
