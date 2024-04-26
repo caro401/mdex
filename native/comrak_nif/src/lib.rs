@@ -686,11 +686,13 @@ impl Encoder for &ExNodeHeading {
 
 impl Encoder for &ExNodeCodeBlock {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
+        let c = std::char::from_u32(self.fence_char as u32).unwrap();
+
         vec![
             ExNodeAttr("fenced".to_string(), ExNodeAttrValue::Bool(self.fenced)),
             ExNodeAttr(
                 "fence_char".to_string(),
-                ExNodeAttrValue::U8(self.fence_char),
+                ExNodeAttrValue::Text(c.to_string()),
             ),
             ExNodeAttr(
                 "fence_length".to_string(),
