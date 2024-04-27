@@ -1,4 +1,4 @@
-use comrak::ListStyleType;
+use comrak::{ExtensionOptions, ListStyleType, ParseOptions, RenderOptions};
 
 #[derive(Debug, NifStruct)]
 #[module = "MDEx.Types.ExtensionOptions"]
@@ -68,4 +68,47 @@ pub struct ExOptions {
     pub parse: ExParseOptions,
     pub render: ExRenderOptions,
     pub features: ExFeaturesOptions,
+}
+
+pub fn extension_options_from_ex_options(options: &ExOptions) -> ExtensionOptions {
+    let mut extension_options = ExtensionOptions::default();
+
+    extension_options.strikethrough = options.extension.strikethrough;
+    extension_options.tagfilter = options.extension.tagfilter;
+    extension_options.table = options.extension.table;
+    extension_options.autolink = options.extension.autolink;
+    extension_options.tasklist = options.extension.tasklist;
+    extension_options.superscript = options.extension.superscript;
+    extension_options.header_ids = options.extension.header_ids.clone();
+    extension_options.footnotes = options.extension.footnotes;
+    extension_options.description_lists = options.extension.description_lists;
+    extension_options.front_matter_delimiter = options.extension.front_matter_delimiter.clone();
+
+    extension_options
+}
+
+pub fn parse_options_from_ex_options(options: &ExOptions) -> ParseOptions {
+    let mut parse_options = ParseOptions::default();
+
+    parse_options.smart = options.parse.smart;
+    parse_options.default_info_string = options.parse.default_info_string.clone();
+    parse_options.relaxed_tasklist_matching = options.parse.relaxed_tasklist_matching;
+    parse_options.relaxed_autolinks = options.parse.relaxed_autolinks;
+
+    parse_options
+}
+
+pub fn render_options_from_ex_options(options: &ExOptions) -> RenderOptions {
+    let mut render_options = RenderOptions::default();
+
+    render_options.hardbreaks = options.render.hardbreaks;
+    render_options.github_pre_lang = options.render.github_pre_lang;
+    render_options.full_info_string = options.render.full_info_string;
+    render_options.width = options.render.width;
+    render_options.unsafe_ = options.render.unsafe_;
+    render_options.escape = options.render.escape;
+    render_options.list_style = ListStyleType::from(options.render.list_style.clone());
+    render_options.sourcepos = options.render.sourcepos;
+
+    render_options
 }
