@@ -10,9 +10,9 @@ defmodule MDEx do
 
   @type md_tree :: [md_node()]
   @type md_node :: md_element() | md_text()
-  @type md_element :: {name :: String.t(), md_attributes(), [md_node()]}
+  @type md_element :: {name :: String.t(), attributes :: [md_attribute()], children :: [md_node()]}
   @type md_text :: String.t()
-  @type md_attributes :: [{String.t(), term()}]
+  @type md_attribute :: {String.t(), term()}
 
   @doc """
   TODO

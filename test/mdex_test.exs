@@ -17,6 +17,11 @@ defmodule MDExTest do
              # heading 1
              ## heading 2
 
+             https://github.com/leandrocp/mdex
+             [MDEx](https://github.com/leandrocp/mdex "mdex")
+
+             ![logo](https://raw.githubusercontent.com/leandrocp/mdex/main/assets/images/mdex_logo.png "mdex")
+
              > block quote
 
              _emph_
@@ -29,14 +34,39 @@ defmodule MDExTest do
              String.trim(" MDEx ")
              ```
 
+             code: `Atom.to_string(:elixir)`
+
+             <div>
+               <span>html</span>
+             <div>
+
+             | foo | bar |
+             | --- | --- |
+             | baz | bim |
+
+             * [x] Done
+             * [ ] Not done
+
              """,
-             extension: [front_matter_delimiter: "---"]
+             extension: [front_matter_delimiter: "---", table: true, tasklist: true, autolink: true]
            ) ==
              {"document", [],
               [
                 {"front_matter", [{"content", "---\ntitle :test\n---\n\n"}], []},
                 {"heading", [{"level", 1}, {"setext", false}], ["heading 1"]},
                 {"heading", [{"level", 2}, {"setext", false}], ["heading 2"]},
+                {"paragraph", [],
+                 [
+                   "",
+                   {"link", [{"url", "https://github.com/leandrocp/mdex"}, {"title", ""}], ["https://github.com/leandrocp/mdex"]},
+                   {"soft_break", [], []},
+                   {"link", [{"url", "https://github.com/leandrocp/mdex"}, {"title", "mdex"}], ["MDEx"]}
+                 ]},
+                {"paragraph", [],
+                 [
+                   {"image", [{"url", "https://raw.githubusercontent.com/leandrocp/mdex/main/assets/images/mdex_logo.png"}, {"title", "mdex"}],
+                    ["logo"]}
+                 ]},
                 {"block_quote", [], [{"paragraph", [], ["block quote"]}]},
                 {"paragraph", [], [{"emph", [], ["emph"]}]},
                 {"paragraph", [], [{"strong", [], ["strong"]}]},
@@ -75,12 +105,33 @@ defmodule MDExTest do
                 {"code_block",
                  [
                    {"fenced", true},
-                   {"fence_char", 96},
+                   {"fence_char", "`"},
                    {"fence_length", 3},
                    {"fence_offset", 0},
                    {"info", "elixir"},
                    {"literal", "String.trim(\" MDEx \")\n"}
-                 ], []}
+                 ], []},
+                {"paragraph", [], ["code: ", {"code", [{"num_backticks", 1}, {"literal", "Atom.to_string(:elixir)"}], []}]},
+                {"html_block", [{"block_type", 6}, {"literal", "<div>\n  <span>html</span>\n<div>\n"}], []},
+                {"table", [{"alignments", ["center"]}, {"num_columns", 2}, {"num_rows", 1}, {"num_nomempty_cells", 2}],
+                 [
+                   {"table_row", [{"header", "true"}], [{"table_cell", [], ["foo"]}, {"table_cell", [], ["bar"]}]},
+                   {"table_row", [{"header", "false"}], [{"table_cell", [], ["baz"]}, {"table_cell", [], ["bim"]}]}
+                 ]},
+                {"list",
+                 [
+                   {"list_type", "bullet"},
+                   {"marker_offset", 0},
+                   {"padding", 2},
+                   {"start", 1},
+                   {"delimiter", "period"},
+                   {"bullet_char", 42},
+                   {"tight", true}
+                 ],
+                 [
+                   {"task_item", [{"symbol", "x"}], [{"paragraph", [], ["Done"]}]},
+                   {"task_item", [{"symbol", " "}], [{"paragraph", [], ["Not done"]}]}
+                 ]}
               ]}
   end
 
