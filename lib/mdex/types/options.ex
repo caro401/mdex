@@ -9,7 +9,11 @@ defmodule MDEx.Types.ExtensionOptions do
             header_ids: nil,
             footnotes: false,
             description_lists: false,
-            front_matter_delimiter: nil
+            front_matter_delimiter: nil,
+            multiline_block_quotes: false,
+            math_dollars: false,
+            math_code: false,
+            shortcodes: false
 end
 
 defmodule MDEx.Types.ParseOptions do

@@ -48,7 +48,7 @@ pub enum ExNodeData {
     Link(ExNodeLink),
     Image(ExNodeLink),
     FootnoteReference(ExNodeFootnoteReference),
-    ShortCode(String),
+    ShortCode(ExNodeShortCode),
     Math(ExNodeMath),
     MultilineBlockQuote(ExNodeMultilineBlockQuote),
     Escaped,
@@ -137,6 +137,12 @@ pub struct ExNodeCode {
 pub struct ExNodeLink {
     pub url: String,
     pub title: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct ExNodeShortCode {
+    pub shortcode: String,
+    pub emoji: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -572,7 +578,16 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
             },
 
             // footnode reference
+
             // shortcode
+            NodeValue::ShortCode(short_code) => Self {
+                data: ExNodeData::ShortCode(ExNodeShortCode {
+                    shortcode: short_code.shortcode().to_string(),
+                    emoji: short_code.emoji().to_string(),
+                }),
+                children,
+            },
+
             // math
             // multiline blockquote
             NodeValue::Escaped => Self {
@@ -989,6 +1004,20 @@ impl Encoder for ExNode {
             }
 
             // html inline
+            ExNode {
+                data: ExNodeData::HtmlInline(raw_html),
+                children,
+            } => {
+                let doc: (String, ExNodeAttrs, ExNodeChildren) = (
+                    "code".to_string(),
+                    vec![ExNodeAttr(
+                        "raw_html".to_string(),
+                        ExNodeAttrValue::Text(raw_html.to_string()),
+                    )],
+                    children.to_vec(),
+                );
+                doc.encode(env)
+            }
 
             // emph
             ExNode {
@@ -1075,12 +1104,100 @@ impl Encoder for ExNode {
             }
 
             // footnote reference
+            ExNode {
+                data: ExNodeData::FootnoteReference(footnote_reference),
+                children,
+            } => {
+                let doc: (String, ExNodeAttrs, ExNodeChildren) = (
+                    "footnote_reference".to_string(),
+                    vec![
+                        ExNodeAttr(
+                            "name".to_string(),
+                            ExNodeAttrValue::Text(footnote_reference.name.to_string()),
+                        ),
+                        ExNodeAttr(
+                            "ref_num".to_string(),
+                            ExNodeAttrValue::U32(footnote_reference.ref_num),
+                        ),
+                        ExNodeAttr(
+                            "ix".to_string(),
+                            ExNodeAttrValue::U32(footnote_reference.ix),
+                        ),
+                    ],
+                    children.to_vec(),
+                );
+                doc.encode(env)
+            }
+            ExNode {
+                data: ExNodeData::ShortCode(short_code),
+                children,
+            } => {
+                let doc: (String, ExNodeAttrs, ExNodeChildren) = (
+                    "short_code".to_string(),
+                    vec![
+                        ExNodeAttr(
+                            "name".to_string(),
+                            ExNodeAttrValue::Text(short_code.shortcode.to_string()),
+                        ),
+                        ExNodeAttr(
+                            "emoji".to_string(),
+                            ExNodeAttrValue::Text(short_code.emoji.to_string()),
+                        ),
+                    ],
+                    children.to_vec(),
+                );
+                doc.encode(env)
+            }
 
             // short code
 
             // math
+            ExNode {
+                data: ExNodeData::Math(math),
+                children,
+            } => {
+                let doc: (String, ExNodeAttrs, ExNodeChildren) = (
+                    "math".to_string(),
+                    vec![
+                        ExNodeAttr(
+                            "dollar_math".to_string(),
+                            ExNodeAttrValue::Bool(math.dollar_math),
+                        ),
+                        ExNodeAttr(
+                            "display_math".to_string(),
+                            ExNodeAttrValue::Bool(math.display_math),
+                        ),
+                        ExNodeAttr(
+                            "literal".to_string(),
+                            ExNodeAttrValue::Text(math.literal.to_string()),
+                        ),
+                    ],
+                    children.to_vec(),
+                );
+                doc.encode(env)
+            }
 
             // multiline block quote
+            ExNode {
+                data: ExNodeData::MultilineBlockQuote(multline_block_quote),
+                children,
+            } => {
+                let doc: (String, ExNodeAttrs, ExNodeChildren) = (
+                    "multiline_block_quote".to_string(),
+                    vec![
+                        ExNodeAttr(
+                            "fence_length".to_string(),
+                            ExNodeAttrValue::Usize(multline_block_quote.fence_length),
+                        ),
+                        ExNodeAttr(
+                            "fence_offset".to_string(),
+                            ExNodeAttrValue::Usize(multline_block_quote.fence_offset),
+                        ),
+                    ],
+                    children.to_vec(),
+                );
+                doc.encode(env)
+            }
 
             // escaped
             ExNode {
@@ -1091,8 +1208,6 @@ impl Encoder for ExNode {
                     ("escaped".to_string(), vec![], children.to_vec());
                 doc.encode(env)
             }
-
-            _ => todo!("exnode encode"),
         }
     }
 }

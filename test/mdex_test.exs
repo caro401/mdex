@@ -14,6 +14,8 @@ defmodule MDExTest do
              title :test
              ---
 
+             It works! :smile:
+
              # heading 1
              ## heading 2
 
@@ -46,13 +48,13 @@ defmodule MDExTest do
 
              * [x] Done
              * [ ] Not done
-
              """,
-             extension: [front_matter_delimiter: "---", table: true, tasklist: true, autolink: true]
+             extension: [front_matter_delimiter: "---", table: true, tasklist: true, autolink: true, shortcodes: true]
            ) ==
              {"document", [],
               [
                 {"front_matter", [{"content", "---\ntitle :test\n---\n\n"}], []},
+                {"paragraph", [], ["It works! ", {"short_code", [{"name", "smile"}, {"emoji", "😄"}], []}]},
                 {"heading", [{"level", 1}, {"setext", false}], ["heading 1"]},
                 {"heading", [{"level", 2}, {"setext", false}], ["heading 2"]},
                 {"paragraph", [],

@@ -16,7 +16,7 @@ rustler = { version = "0.32", features = [
     "serde",
 ] }
 serde = "1.0"
-comrak = "0.22"
+comrak = { version = "0.22", features = [ "shortcodes" ] }
 ammonia = "3.3"
 phf = { version = "0.11", features = ["macros"] }
 tree-sitter = "0.20"

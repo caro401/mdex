@@ -13,6 +13,10 @@ pub struct ExExtensionOptions {
     pub footnotes: bool,
     pub description_lists: bool,
     pub front_matter_delimiter: Option<String>,
+    pub multiline_block_quotes: bool,
+    pub math_dollars: bool,
+    pub math_code: bool,
+    pub shortcodes: bool,
 }
 
 #[derive(Debug, NifStruct)]
@@ -83,6 +87,10 @@ pub fn extension_options_from_ex_options(options: &ExOptions) -> ExtensionOption
     extension_options.footnotes = options.extension.footnotes;
     extension_options.description_lists = options.extension.description_lists;
     extension_options.front_matter_delimiter = options.extension.front_matter_delimiter.clone();
+    extension_options.multiline_block_quotes = options.extension.multiline_block_quotes;
+    extension_options.math_dollars = options.extension.math_dollars;
+    extension_options.math_code = options.extension.math_code;
+    extension_options.shortcodes = options.extension.shortcodes;
 
     extension_options
 }
