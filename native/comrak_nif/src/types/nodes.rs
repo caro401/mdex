@@ -448,9 +448,29 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
                 children,
             },
 
-            // description list
-            // description item
-            // description details
+            NodeValue::DescriptionList => Self {
+                data: ExNodeData::DescriptionList,
+                children,
+            },
+
+            NodeValue::DescriptionItem(ref description_item) => Self {
+                data: ExNodeData::DescriptionItem(ExNodeDescriptionItem {
+                    marker_offset: description_item.marker_offset,
+                    padding: description_item.padding,
+                }),
+                children,
+            },
+
+            NodeValue::DescriptionTerm => Self {
+                data: ExNodeData::DescriptionTerm,
+                children,
+            },
+
+            NodeValue::DescriptionDetails => Self {
+                data: ExNodeData::DescriptionDetails,
+                children,
+            },
+
             NodeValue::CodeBlock(ref code_block) => Self {
                 data: ExNodeData::CodeBlock(ExNodeCodeBlock {
                     fenced: code_block.fenced,
@@ -489,7 +509,14 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
                 children,
             },
 
-            // footnote definition
+            NodeValue::FootnoteDefinition(ref footnote_definition) => Self {
+                data: ExNodeData::FootnoteDefinition(ExNodeFootnoteDefinition {
+                    name: footnote_definition.name.to_string(),
+                    total_references: footnote_definition.total_references,
+                }),
+                children,
+            },
+
             NodeValue::Table(ref table) => Self {
                 data: ExNodeData::Table(ExNodeTable {
                     // FIXME: resolve alignments list
@@ -538,7 +565,11 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
                 children,
             },
 
-            // html inline
+            NodeValue::HtmlInline(ref raw_html) => Self {
+                data: ExNodeData::HtmlInline(raw_html.to_string()),
+                children,
+            },
+
             NodeValue::Emph => Self {
                 data: ExNodeData::Emph,
                 children,
@@ -559,7 +590,6 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
                 children,
             },
 
-            // link
             NodeValue::Link(ref link) => Self {
                 data: ExNodeData::Link(ExNodeLink {
                     url: link.url.to_string(),
@@ -568,7 +598,6 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
                 children,
             },
 
-            // image
             NodeValue::Image(ref link) => Self {
                 data: ExNodeData::Image(ExNodeLink {
                     url: link.url.to_string(),
@@ -577,10 +606,16 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
                 children,
             },
 
-            // footnode reference
+            NodeValue::FootnoteReference(ref footnote_reference) => Self {
+                data: ExNodeData::FootnoteReference(ExNodeFootnoteReference {
+                    name: footnote_reference.name.to_string(),
+                    ref_num: footnote_reference.ref_num,
+                    ix: footnote_reference.ix,
+                }),
+                children,
+            },
 
-            // shortcode
-            NodeValue::ShortCode(short_code) => Self {
+            NodeValue::ShortCode(ref short_code) => Self {
                 data: ExNodeData::ShortCode(ExNodeShortCode {
                     shortcode: short_code.shortcode().to_string(),
                     emoji: short_code.emoji().to_string(),
@@ -588,14 +623,27 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
                 children,
             },
 
-            // math
-            // multiline blockquote
+            NodeValue::Math(ref math) => Self {
+                data: ExNodeData::Math(ExNodeMath {
+                    dollar_math: math.dollar_math,
+                    display_math: math.display_math,
+                    literal: math.literal.to_string(),
+                }),
+                children,
+            },
+
+            NodeValue::MultilineBlockQuote(ref multiline_block_quote) => Self {
+                data: ExNodeData::MultilineBlockQuote(ExNodeMultilineBlockQuote {
+                    fence_length: multiline_block_quote.fence_length,
+                    fence_offset: multiline_block_quote.fence_offset,
+                }),
+                children,
+            },
+
             NodeValue::Escaped => Self {
                 data: ExNodeData::Escaped,
                 children,
             },
-
-            _ => todo!("exnode from astnode"),
         }
     }
 }
