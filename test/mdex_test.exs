@@ -77,7 +77,7 @@ defmodule MDExTest do
                    {"padding", 2},
                    {"start", 1},
                    {"delimiter", "period"},
-                   {"bullet_char", 45},
+                   {"bullet_char", "-"},
                    {"tight", true}
                  ],
                  [
@@ -88,7 +88,7 @@ defmodule MDExTest do
                       {"padding", 2},
                       {"start", 1},
                       {"delimiter", "period"},
-                      {"bullet_char", 45},
+                      {"bullet_char", "-"},
                       {"tight", false}
                     ], [{"paragraph", [], ["Elixir"]}]},
                    {"item",
@@ -98,7 +98,7 @@ defmodule MDExTest do
                       {"padding", 2},
                       {"start", 1},
                       {"delimiter", "period"},
-                      {"bullet_char", 45},
+                      {"bullet_char", "-"},
                       {"tight", false}
                     ], [{"paragraph", [], ["Rust"]}]}
                  ]},
@@ -125,7 +125,7 @@ defmodule MDExTest do
                    {"padding", 2},
                    {"start", 1},
                    {"delimiter", "period"},
-                   {"bullet_char", 42},
+                   {"bullet_char", "*"},
                    {"tight", true}
                  ],
                  [

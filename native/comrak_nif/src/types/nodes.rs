@@ -1,6 +1,6 @@
 use crate::types::options::*;
 use comrak::{
-    nodes::{Ast, AstNode, LineColumn, NodeHeading, NodeList, NodeValue},
+    nodes::{Ast, AstNode, LineColumn, ListDelimType, ListType, NodeHeading, NodeList, NodeValue},
     Arena, Options,
 };
 use rustler::{
@@ -416,30 +416,26 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
                 children,
             },
 
-            // FIXME: list attrs
             NodeValue::List(ref node_list) => Self {
                 data: ExNodeData::List(ExNodeList {
-                    // FIXME: node list attrs
-                    list_type: ExListType::Bullet,
+                    list_type: ExListType::from(node_list.list_type),
                     marker_offset: node_list.marker_offset,
                     padding: node_list.padding,
                     start: node_list.start,
-                    delimiter: ExListDelimType::Period,
+                    delimiter: ExListDelimType::from(node_list.delimiter),
                     bullet_char: node_list.bullet_char,
                     tight: node_list.tight,
                 }),
                 children,
             },
 
-            // FIXME: item attrs
             NodeValue::Item(ref node_list) => Self {
                 data: ExNodeData::Item(ExNodeList {
-                    // FIXME: node list attrs
-                    list_type: ExListType::Bullet,
+                    list_type: ExListType::from(node_list.list_type),
                     marker_offset: node_list.marker_offset,
                     padding: node_list.padding,
                     start: node_list.start,
-                    delimiter: ExListDelimType::Period,
+                    delimiter: ExListDelimType::from(node_list.delimiter),
                     bullet_char: node_list.bullet_char,
                     tight: node_list.tight,
                 }),
@@ -655,7 +651,7 @@ impl Encoder for ExNode {
                         ),
                         ExNodeAttr(
                             "bullet_char".to_string(),
-                            ExNodeAttrValue::U8(list.bullet_char),
+                            ExNodeAttrValue::Text(char_to_string( list.bullet_char)),
                         ),
                         ExNodeAttr("tight".to_string(), ExNodeAttrValue::Bool(list.tight)),
                     ],
@@ -688,7 +684,7 @@ impl Encoder for ExNode {
                         ),
                         ExNodeAttr(
                             "bullet_char".to_string(),
-                            ExNodeAttrValue::U8(list.bullet_char),
+                            ExNodeAttrValue::Text(char_to_string(list.bullet_char)),
                         ),
                         ExNodeAttr("tight".to_string(), ExNodeAttrValue::Bool(list.tight)),
                     ],
@@ -754,9 +750,6 @@ impl Encoder for ExNode {
                 data: ExNodeData::CodeBlock(code_block),
                 children,
             } => {
-                // FIXME: extract into fn and handle error
-                let c = std::char::from_u32(code_block.fence_char as u32).unwrap();
-
                 let doc: (String, ExNodeAttrs, ExNodeChildren) = (
                     "code_block".to_string(),
                     vec![
@@ -766,7 +759,7 @@ impl Encoder for ExNode {
                         ),
                         ExNodeAttr(
                             "fence_char".to_string(),
-                            ExNodeAttrValue::Text(c.to_string()),
+                            ExNodeAttrValue::Text(char_to_string(code_block.fence_char)),
                         ),
                         ExNodeAttr(
                             "fence_length".to_string(),
@@ -1102,11 +1095,29 @@ impl Encoder for ExNode {
     }
 }
 
+impl ExListType {
+    fn from(list_type: ListType) -> Self {
+        match list_type {
+            ListType::Bullet => Self::Bullet,
+            ListType::Ordered => Self::Ordered,
+        }
+    }
+}
+
 impl ToString for ExListType {
     fn to_string(&self) -> String {
         match self {
             ExListType::Bullet => "bullet".to_string(),
             ExListType::Ordered => "ordered".to_string(),
+        }
+    }
+}
+
+impl ExListDelimType {
+    fn from(list_delim_type: ListDelimType) -> Self {
+        match list_delim_type {
+            ListDelimType::Period => Self::Period,
+            ListDelimType::Paren => Self::Paren,
         }
     }
 }
@@ -1117,5 +1128,12 @@ impl ToString for ExListDelimType {
             ExListDelimType::Period => "period".to_string(),
             ExListDelimType::Paren => "paren".to_string(),
         }
+    }
+}
+
+fn char_to_string(c: u8) -> String {
+    match String::from_utf8(vec![c]) {
+        Ok(s) => s,
+        Err(_) => "".to_string(),
     }
 }
