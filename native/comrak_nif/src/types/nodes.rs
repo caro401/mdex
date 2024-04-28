@@ -651,7 +651,7 @@ impl Encoder for ExNode {
                         ),
                         ExNodeAttr(
                             "bullet_char".to_string(),
-                            ExNodeAttrValue::Text(char_to_string( list.bullet_char)),
+                            ExNodeAttrValue::Text(char_to_string(list.bullet_char)),
                         ),
                         ExNodeAttr("tight".to_string(), ExNodeAttrValue::Bool(list.tight)),
                     ],
@@ -868,14 +868,16 @@ impl Encoder for ExNode {
                 data: ExNodeData::Table(table),
                 children,
             } => {
+                let alignments: Vec<String> = table
+                    .alignments
+                    .iter()
+                    .map(|alignment| alignment.to_string())
+                    .collect();
+
                 let doc: (String, ExNodeAttrs, ExNodeChildren) = (
                     "table".to_string(),
                     vec![
-                        ExNodeAttr(
-                            "alignments".to_string(),
-                            // FIXME: resolve alignment list
-                            ExNodeAttrValue::List(vec!["center".to_string()]),
-                        ),
+                        ExNodeAttr("alignments".to_string(), ExNodeAttrValue::List(alignments)),
                         ExNodeAttr(
                             "num_columns".to_string(),
                             ExNodeAttrValue::Usize(table.num_columns),
@@ -1135,5 +1137,16 @@ fn char_to_string(c: u8) -> String {
     match String::from_utf8(vec![c]) {
         Ok(s) => s,
         Err(_) => "".to_string(),
+    }
+}
+
+impl ToString for ExTableAlignment {
+    fn to_string(&self) -> String {
+        match self {
+            Self::None => "none".to_string(),
+            Self::Left => "left".to_string(),
+            Self::Center => "center".to_string(),
+            Self::Right => "right".to_string(),
+        }
     }
 }
