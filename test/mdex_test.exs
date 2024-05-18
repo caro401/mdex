@@ -43,7 +43,7 @@ defmodule MDExTest do
              <div>
 
              | foo | bar |
-             | --- | --- |
+             | :-- | :-: |
              | baz | bim |
 
              * [x] Done
@@ -115,7 +115,7 @@ defmodule MDExTest do
                  ], []},
                 {"paragraph", [], ["code: ", {"code", [{"num_backticks", 1}, {"literal", "Atom.to_string(:elixir)"}], []}]},
                 {"html_block", [{"block_type", 6}, {"literal", "<div>\n  <span>html</span>\n<div>\n"}], []},
-                {"table", [{"alignments", ["center"]}, {"num_columns", 2}, {"num_rows", 1}, {"num_nomempty_cells", 2}],
+                {"table", [{"alignments", ["left", "center"]}, {"num_columns", 2}, {"num_rows", 1}, {"num_nomempty_cells", 2}],
                  [
                    {"table_row", [{"header", true}], [{"table_cell", [], ["foo"]}, {"table_cell", [], ["bar"]}]},
                    {"table_row", [{"header", false}], [{"table_cell", [], ["baz"]}, {"table_cell", [], ["bim"]}]}

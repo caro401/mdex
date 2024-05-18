@@ -1,6 +1,9 @@
 use crate::types::options::*;
 use comrak::{
-    nodes::{Ast, AstNode, LineColumn, ListDelimType, ListType, NodeHeading, NodeList, NodeValue},
+    nodes::{
+        Ast, AstNode, LineColumn, ListDelimType, ListType, NodeHeading, NodeList, NodeValue,
+        TableAlignment,
+    },
     Arena, Options,
 };
 use rustler::{
@@ -519,8 +522,7 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
 
             NodeValue::Table(ref table) => Self {
                 data: ExNodeData::Table(ExNodeTable {
-                    // FIXME: resolve alignments list
-                    alignments: vec![ExTableAlignment::Center],
+                    alignments: ExTableAlignment::from_vec(table.alignments.to_vec()),
                     num_columns: table.num_columns,
                     num_rows: table.num_rows,
                     num_nonempty_cells: table.num_nonempty_cells,
@@ -1300,6 +1302,24 @@ fn char_to_string(c: u8) -> String {
     match String::from_utf8(vec![c]) {
         Ok(s) => s,
         Err(_) => "".to_string(),
+    }
+}
+
+impl ExTableAlignment {
+    fn from_vec(table_alignments: Vec<TableAlignment>) -> Vec<Self> {
+        table_alignments
+            .iter()
+            .map(|&ta| Self::from(ta))
+            .collect::<Vec<Self>>()
+    }
+
+    fn from(table_alignment: TableAlignment) -> Self {
+        match table_alignment {
+            TableAlignment::None => Self::None,
+            TableAlignment::Left => Self::Left,
+            TableAlignment::Center => Self::Center,
+            TableAlignment::Right => Self::Right,
+        }
     }
 }
 
