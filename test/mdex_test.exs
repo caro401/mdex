@@ -117,8 +117,8 @@ defmodule MDExTest do
                 {"html_block", [{"block_type", 6}, {"literal", "<div>\n  <span>html</span>\n<div>\n"}], []},
                 {"table", [{"alignments", ["center"]}, {"num_columns", 2}, {"num_rows", 1}, {"num_nomempty_cells", 2}],
                  [
-                   {"table_row", [{"header", "true"}], [{"table_cell", [], ["foo"]}, {"table_cell", [], ["bar"]}]},
-                   {"table_row", [{"header", "false"}], [{"table_cell", [], ["baz"]}, {"table_cell", [], ["bim"]}]}
+                   {"table_row", [{"header", true}], [{"table_cell", [], ["foo"]}, {"table_cell", [], ["bar"]}]},
+                   {"table_row", [{"header", false}], [{"table_cell", [], ["baz"]}, {"table_cell", [], ["bim"]}]}
                  ]},
                 {"list",
                  [

@@ -968,7 +968,7 @@ impl Encoder for ExNode {
                     "table_row".to_string(),
                     vec![ExNodeAttr(
                         "header".to_string(),
-                        ExNodeAttrValue::Text(header.to_string()),
+                        ExNodeAttrValue::Bool(*header),
                     )],
                     children.to_vec(),
                 );
