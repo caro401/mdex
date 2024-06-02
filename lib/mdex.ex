@@ -11,13 +11,13 @@ defmodule MDEx do
   @type md_tree :: [md_node()]
   @type md_node :: md_element() | md_text()
   @type md_element :: {name :: String.t(), attributes :: [md_attribute()], children :: [md_node()]}
-  @type md_text :: String.t()
   @type md_attribute :: {String.t(), term()}
+  @type md_text :: String.t()
 
   @doc """
   TODO
   """
-  @spec parse_document(String.t()) :: {:ok, md_tree()} | {:error, term()}
+  @spec parse_document(String.t()) :: md_tree()
   def parse_document(markdown, opts \\ []) do
     Native.parse_document(markdown, comrak_options(opts))
   end
@@ -34,13 +34,17 @@ defmodule MDEx do
       "<p>Implemented with:</p>\\n<ol>\\n<li>Elixir</li>\\n<li>Rust</li>\\n</ol>\\n"
 
   """
-  @spec to_html(String.t()) :: String.t()
+  @spec to_html(String.t() | md_tree()) :: String.t()
+  def to_html(markdown)
+
   def to_html(markdown) when is_binary(markdown) do
     Native.to_html(markdown)
   end
 
-  def to_html(ast) when is_tuple(ast) do
-    Native.ast_to_html(ast)
+  def to_html(markdown) when is_list(markdown) do
+    markdown
+    |> maybe_wrap_document()
+    |> Native.tree_to_html()
   end
 
   @doc """
@@ -79,9 +83,17 @@ defmodule MDEx do
       "<h1>Title with </h1>\\n"
 
   """
-  @spec to_html(String.t(), keyword()) :: String.t()
+  @spec to_html(String.t() | md_tree(), keyword()) :: String.t()
+  def to_html(markdown, opts)
+
   def to_html(markdown, opts) when is_binary(markdown) and is_list(opts) do
     Native.to_html_with_options(markdown, comrak_options(opts))
+  end
+
+  def to_html(markdown, opts) when is_list(markdown) and is_list(opts) do
+    markdown
+    |> maybe_wrap_document()
+    |> Native.tree_to_html_with_options(comrak_options(opts))
   end
 
   defp comrak_options(opts) do
@@ -96,5 +108,25 @@ defmodule MDEx do
       render: struct(MDEx.Types.RenderOptions, render),
       features: struct(MDEx.Types.FeaturesOptions, features)
     }
+  end
+
+  defp maybe_wrap_document([{"document", _, _} | _] = tree), do: tree
+
+  defp maybe_wrap_document([fragment]) when is_tuple(fragment) do
+    [{"document", [], [fragment]}]
+  end
+
+  defp maybe_wrap_document(fragment) when is_list(fragment) do
+    Enum.all?(fragment, &is_binary/1) ||
+      raise """
+      expected a list of nodes as [{"paragraph", [], ["text"]}] or ["text"]
+
+      Got:
+
+        #{inspect(fragment)}
+
+      """
+
+    [{"document", [], [{"paragraph", [], fragment}]}]
   end
 end

@@ -1,8 +1,10 @@
 use crate::types::options::*;
 use comrak::{
     nodes::{
-        Ast, AstNode, LineColumn, ListDelimType, ListType, NodeHeading, NodeList, NodeValue,
-        TableAlignment,
+        Ast, AstNode, LineColumn, ListDelimType, ListType, NodeCode, NodeCodeBlock,
+        NodeDescriptionItem, NodeFootnoteDefinition, NodeFootnoteReference, NodeHeading,
+        NodeHtmlBlock, NodeLink, NodeList, NodeMath, NodeMultilineBlockQuote, NodeShortCode,
+        NodeTable, NodeValue, TableAlignment,
     },
     Arena, Options,
 };
@@ -11,6 +13,8 @@ use rustler::{
     Term,
 };
 use std::cell::RefCell;
+
+pub type ExNodeTree = Vec<ExNode>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExNode {
@@ -185,61 +189,60 @@ pub enum ExNodeAttrValue {
 }
 
 impl ExNode {
+    // TODO: error handling
     fn decode_term<'a>(term: Term<'a>) -> Self {
-        if term.is_tuple() {
-            let node: Vec<Term<'a>> = get_tuple(term).unwrap();
+        // println!("term: {:?}", term);
 
-            match node.len() {
-                3 => ExNode::decode_node(node),
-                _ => todo!("decode term node.len != 3"),
-            }
-        } else if term.is_binary() {
+        if term.is_binary() {
             let text: String = term.decode().unwrap();
+
             ExNode {
                 data: ExNodeData::Text(text),
                 children: vec![],
             }
+        } else if term.is_tuple() {
+            let node: Vec<Term<'a>> = get_tuple(term).unwrap();
+            ExNode::decode_node(node)
         } else {
-            todo!("decode term else")
+            panic!("TODO")
         }
     }
 
+    // [name, attrs, children]
     fn decode_node<'a>(node: Vec<Term<'a>>) -> Self {
-        // FIXME: find a better way to convert Term to String
-        let name = node.first().unwrap();
-        let name = Binary::from_term(*name).unwrap().as_slice();
-        let name = String::from_utf8(name.to_vec()).unwrap();
+        // println!("node: {:?}", node);
 
-        let children: Vec<Term<'a>> = node.get(2).unwrap().decode::<Vec<Term>>().unwrap();
+        let name = node.get(0).expect("TODO");
+        let name = ExNode::decode_node_name(name);
+        // println!("name: {:?}", name);
 
-        let children: Vec<_> = children
+        let attrs = node
+            .get(1)
+            .expect("TODO")
+            .decode::<Vec<Term>>()
+            .unwrap_or(vec![]);
+
+        // println!("attrs: {:?}", attrs);
+
+        let children = node.get(2).expect("TODO");
+        let children = children.decode::<Vec<Term>>().unwrap();
+        let children = children
             .iter()
             .map(|child| ExNode::decode_term(*child))
             .collect();
+        // println!("children: {:?}", children);
 
         match name.as_str() {
             "document" => ExNode {
                 data: ExNodeData::Document,
                 children,
             },
-            "heading" => ExNode {
-                data: ExNodeData::Heading(ExNodeHeading {
-                    // FIXME: node heading attrs
-                    level: 1,
-                    setext: false,
-                }),
+            "front_matter" => ExNode {
+                data: ExNodeData::FrontMatter("TODO".to_string()),
                 children,
             },
-            "paragraph" => ExNode {
-                data: ExNodeData::Paragraph,
-                children,
-            },
-            "strong" => ExNode {
-                data: ExNodeData::Strong,
-                children,
-            },
-            "emph" => ExNode {
-                data: ExNodeData::Emph,
+            "block_quote" => ExNode {
+                data: ExNodeData::BlockQuote,
                 children,
             },
             "list" => ExNode {
@@ -268,11 +271,172 @@ impl ExNode {
                 }),
                 children,
             },
-            &_ => todo!("exnode decode_node"),
+            "description_list" => ExNode {
+                data: ExNodeData::DescriptionList,
+                children,
+            },
+            // FIXME
+            "description_item" => ExNode {
+                data: ExNodeData::DescriptionItem(ExNodeDescriptionItem {
+                    marker_offset: 0,
+                    padding: 2,
+                }),
+                children,
+            },
+            "description_term" => ExNode {
+                data: ExNodeData::DescriptionTerm,
+                children,
+            },
+            "description_details" => ExNode {
+                data: ExNodeData::DescriptionDetails,
+                children,
+            },
+            "code_block" => ExNode {
+                data: ExNodeData::code_block_from_attrs(attrs)
+                    .expect("failed to decode code_block"),
+                children,
+            },
+            "html_block" => ExNode {
+                data: ExNodeData::HtmlBlock(ExNodeHtmlBlock {
+                    block_type: 0,
+                    literal: "TODO".to_string(),
+                }),
+                children,
+            },
+            "paragraph" => ExNode {
+                data: ExNodeData::Paragraph,
+                children,
+            },
+            "heading" => ExNode {
+                data: ExNodeData::heading_from_attrs(attrs).expect("failed to decode heading"),
+                children,
+            },
+            "thematic_break" => ExNode {
+                data: ExNodeData::ThematicBreak,
+                children,
+            },
+            "footnote_definition" => ExNode {
+                data: ExNodeData::FootnoteDefinition(ExNodeFootnoteDefinition {
+                    name: "TODO".to_string(),
+                    total_references: 0,
+                }),
+                children,
+            },
+            "table" => ExNode {
+                data: ExNodeData::table_from_attrs(attrs).expect("failed to decode table"),
+                children,
+            },
+            "table_row" => ExNode {
+                data: ExNodeData::table_row_from_attrs(attrs).expect("failed to decode table row"),
+                children,
+            },
+            "table_cell" => ExNode {
+                data: ExNodeData::TableCell,
+                children,
+            },
+            "text" => ExNode {
+                data: ExNodeData::Text("TODO".to_string()),
+                children,
+            },
+            "task_item" => ExNode {
+                data: ExNodeData::TaskItem(Some('x')),
+                children,
+            },
+            "soft_break" => ExNode {
+                data: ExNodeData::SoftBreak,
+                children,
+            },
+            "line_break" => ExNode {
+                data: ExNodeData::LineBreak,
+                children,
+            },
+            "code" => ExNode {
+                data: ExNodeData::Code(ExNodeCode {
+                    num_backticks: 0,
+                    literal: "TODO".to_string(),
+                }),
+                children,
+            },
+            "html_inline" => ExNode {
+                data: ExNodeData::HtmlInline("TODO".to_string()),
+                children,
+            },
+            "emph" => ExNode {
+                data: ExNodeData::Emph,
+                children,
+            },
+            "strong" => ExNode {
+                data: ExNodeData::Strong,
+                children,
+            },
+            "strikethrough" => ExNode {
+                data: ExNodeData::Strikethrough,
+                children,
+            },
+            "superscript" => ExNode {
+                data: ExNodeData::Superscript,
+                children,
+            },
+            "link" => ExNode {
+                data: ExNodeData::Link(ExNodeLink {
+                    url: "TODO".to_string(),
+                    title: "TODO".to_string(),
+                }),
+                children,
+            },
+            "image" => ExNode {
+                data: ExNodeData::Image(ExNodeLink {
+                    url: "TODO".to_string(),
+                    title: "TODO".to_string(),
+                }),
+                children,
+            },
+            "footnote_reference" => ExNode {
+                data: ExNodeData::FootnoteReference(ExNodeFootnoteReference {
+                    name: "TODO".to_string(),
+                    ref_num: 0,
+                    ix: 0,
+                }),
+                children,
+            },
+            "short_code" => ExNode {
+                data: ExNodeData::ShortCode(ExNodeShortCode {
+                    shortcode: "TODO".to_string(),
+                    emoji: "TODO".to_string(),
+                }),
+                children,
+            },
+            "math" => ExNode {
+                data: ExNodeData::Math(ExNodeMath {
+                    dollar_math: true,
+                    display_math: true,
+                    literal: "TODO".to_string(),
+                }),
+                children,
+            },
+            "multiline_block_quote" => ExNode {
+                data: ExNodeData::MultilineBlockQuote(ExNodeMultilineBlockQuote {
+                    fence_length: 0,
+                    fence_offset: 0,
+                }),
+                children,
+            },
+            "escaped" => ExNode {
+                data: ExNodeData::Escaped,
+                children,
+            },
+            &_ => todo!(),
         }
     }
 
-    pub fn parse_document(md: &str, options: ExOptions) -> Self {
+    // FIXME: find a better way to convert Term to String
+    // FIXME: error handling
+    fn decode_node_name<'a>(name: &Term<'a>) -> String {
+        let name = Binary::from_term(*name).unwrap().as_slice();
+        String::from_utf8(name.to_vec()).unwrap()
+    }
+
+    pub fn parse_document(md: &str, options: ExOptions) -> ExNodeTree {
         let comrak_options = comrak::Options {
             extension: extension_options_from_ex_options(&options),
             parse: parse_options_from_ex_options(&options),
@@ -280,10 +444,10 @@ impl ExNode {
         };
         let arena = Arena::new();
         let root = comrak::parse_document(&arena, md, &comrak_options);
-        Self::from(root)
+        vec![Self::from(root)]
     }
 
-    pub fn format_document(&self) -> String {
+    pub fn format_document(&self, options: &Options) -> String {
         let arena = Arena::new();
 
         if let ExNode {
@@ -299,7 +463,7 @@ impl ExNode {
                     children: children.to_vec(),
                 },
             );
-            comrak::html::format_document(ast_node, &Options::default(), &mut output).unwrap();
+            comrak::html::format_document(ast_node, options, &mut output).unwrap();
             String::from_utf8(output).unwrap()
         } else {
             // TODO: return Result
@@ -326,37 +490,24 @@ impl ExNode {
             parent
         };
 
+        // println!("exnode: {:?}", exnode);
+
         match exnode {
             ExNode {
                 data: ExNodeData::Document,
                 children,
             } => build(NodeValue::Document, children),
+
             ExNode {
-                data: ExNodeData::Heading(ref heading),
+                data: ExNodeData::FrontMatter(ref front_matter),
                 children,
-            } => build(
-                NodeValue::Heading(NodeHeading {
-                    level: heading.level,
-                    setext: heading.setext,
-                }),
-                children,
-            ),
+            } => build(NodeValue::FrontMatter(front_matter.to_owned()), children),
+
             ExNode {
-                data: ExNodeData::Text(text),
+                data: ExNodeData::BlockQuote,
                 children,
-            } => build(NodeValue::Text(text.to_owned()), vec![]),
-            ExNode {
-                data: ExNodeData::Paragraph,
-                children,
-            } => build(NodeValue::Paragraph, children),
-            ExNode {
-                data: ExNodeData::Strong,
-                children,
-            } => build(NodeValue::Strong, children),
-            ExNode {
-                data: ExNodeData::Emph,
-                children,
-            } => build(NodeValue::Emph, children),
+            } => build(NodeValue::BlockQuote, children),
+
             ExNode {
                 data: ExNodeData::List(ref node_list),
                 children,
@@ -373,11 +524,12 @@ impl ExNode {
                 }),
                 children,
             ),
+
             ExNode {
                 data: ExNodeData::Item(ref node_list),
                 children,
             } => build(
-                NodeValue::List(NodeList {
+                NodeValue::Item(NodeList {
                     // FIXME: node list attrs
                     list_type: comrak::nodes::ListType::Bullet,
                     marker_offset: node_list.marker_offset,
@@ -389,7 +541,241 @@ impl ExNode {
                 }),
                 children,
             ),
-            _ => todo!("exnode to_ast_node"),
+
+            ExNode {
+                data: ExNodeData::DescriptionList,
+                children,
+            } => build(NodeValue::DescriptionList, vec![]),
+
+            ExNode {
+                data: ExNodeData::DescriptionItem(ref node_description_item),
+                children,
+            } => build(
+                NodeValue::DescriptionItem(NodeDescriptionItem {
+                    marker_offset: node_description_item.marker_offset,
+                    padding: node_description_item.padding,
+                }),
+                children,
+            ),
+
+            ExNode {
+                data: ExNodeData::DescriptionTerm,
+                children,
+            } => build(NodeValue::DescriptionTerm, vec![]),
+
+            ExNode {
+                data: ExNodeData::DescriptionDetails,
+                children,
+            } => build(NodeValue::DescriptionDetails, vec![]),
+
+            ExNode {
+                data: ExNodeData::CodeBlock(ref node_code_block),
+                children,
+            } => build(
+                NodeValue::CodeBlock(NodeCodeBlock {
+                    fenced: node_code_block.fenced,
+                    fence_char: node_code_block.fence_char,
+                    fence_length: node_code_block.fence_length,
+                    fence_offset: node_code_block.fence_offset,
+                    info: node_code_block.info.to_owned(),
+                    literal: node_code_block.literal.to_owned(),
+                }),
+                children,
+            ),
+
+            ExNode {
+                data: ExNodeData::HtmlBlock(ref node_html_block),
+                children,
+            } => build(
+                NodeValue::HtmlBlock(NodeHtmlBlock {
+                    block_type: node_html_block.block_type,
+                    literal: node_html_block.literal.to_owned(),
+                }),
+                children,
+            ),
+
+            ExNode {
+                data: ExNodeData::Paragraph,
+                children,
+            } => build(NodeValue::Paragraph, children),
+
+            ExNode {
+                data: ExNodeData::Heading(ref heading),
+                children,
+            } => build(
+                NodeValue::Heading(NodeHeading {
+                    level: heading.level,
+                    setext: heading.setext,
+                }),
+                children,
+            ),
+
+            ExNode {
+                data: ExNodeData::ThematicBreak,
+                children,
+            } => build(NodeValue::ThematicBreak, children),
+
+            ExNode {
+                data: ExNodeData::FootnoteDefinition(ref footnote_definition),
+                children,
+            } => build(
+                NodeValue::FootnoteDefinition(NodeFootnoteDefinition {
+                    name: footnote_definition.name.to_owned(),
+                    total_references: footnote_definition.total_references,
+                }),
+                children,
+            ),
+
+            ExNode {
+                data: ExNodeData::Table(ref node_table),
+                children,
+            } => build(
+                NodeValue::Table(NodeTable {
+                    alignments: ExTableAlignment::to_table_alignments(
+                        node_table.alignments.to_owned(),
+                    ),
+                    num_columns: node_table.num_columns,
+                    num_rows: node_table.num_rows,
+                    num_nonempty_cells: node_table.num_nonempty_cells,
+                }),
+                children,
+            ),
+
+            ExNode {
+                data: ExNodeData::TableRow(ref table_row),
+                children,
+            } => build(NodeValue::TableRow(*table_row), children),
+
+            ExNode {
+                data: ExNodeData::TableCell,
+                children,
+            } => build(NodeValue::TableCell, children),
+
+            ExNode {
+                data: ExNodeData::Text(ref text),
+                children,
+            } => build(NodeValue::Text(text.to_owned()), children),
+
+            ExNode {
+                data: ExNodeData::TaskItem(ref task_item),
+                children,
+            } => build(NodeValue::TaskItem(*task_item), children),
+
+            ExNode {
+                data: ExNodeData::SoftBreak,
+                children,
+            } => build(NodeValue::SoftBreak, children),
+
+            ExNode {
+                data: ExNodeData::LineBreak,
+                children,
+            } => build(NodeValue::LineBreak, children),
+
+            ExNode {
+                data: ExNodeData::Code(ref node_code),
+                children,
+            } => build(
+                NodeValue::Code(NodeCode {
+                    num_backticks: node_code.num_backticks,
+                    literal: node_code.literal.to_owned(),
+                }),
+                children,
+            ),
+
+            ExNode {
+                data: ExNodeData::HtmlInline(html_inline),
+                children,
+            } => build(NodeValue::HtmlInline(html_inline.to_string()), children),
+
+            ExNode {
+                data: ExNodeData::Emph,
+                children,
+            } => build(NodeValue::Emph, children),
+
+            ExNode {
+                data: ExNodeData::Strong,
+                children,
+            } => build(NodeValue::Strong, children),
+
+            ExNode {
+                data: ExNodeData::Strikethrough,
+                children,
+            } => build(NodeValue::Strikethrough, children),
+
+            ExNode {
+                data: ExNodeData::Superscript,
+                children,
+            } => build(NodeValue::Superscript, children),
+
+            ExNode {
+                data: ExNodeData::Link(ref node_link),
+                children,
+            } => build(
+                NodeValue::Link(NodeLink {
+                    url: node_link.url.to_owned(),
+                    title: node_link.title.to_owned(),
+                }),
+                children,
+            ),
+
+            ExNode {
+                data: ExNodeData::Image(ref node_link),
+                children,
+            } => build(
+                NodeValue::Image(NodeLink {
+                    url: node_link.url.to_owned(),
+                    title: node_link.title.to_owned(),
+                }),
+                children,
+            ),
+
+            ExNode {
+                data: ExNodeData::FootnoteReference(ref node_footnote_reference),
+                children,
+            } => build(
+                NodeValue::FootnoteReference(NodeFootnoteReference {
+                    name: node_footnote_reference.name.to_owned(),
+                    ref_num: node_footnote_reference.ref_num,
+                    ix: node_footnote_reference.ix,
+                }),
+                children,
+            ),
+
+            ExNode {
+                data: ExNodeData::ShortCode(ref node_shortcode),
+                children,
+            } => build(
+                NodeValue::ShortCode(NodeShortCode::try_from("rocket").unwrap()),
+                children,
+            ),
+
+            ExNode {
+                data: ExNodeData::Math(ref node_math),
+                children,
+            } => build(
+                NodeValue::Math(NodeMath {
+                    dollar_math: node_math.dollar_math,
+                    display_math: node_math.display_math,
+                    literal: node_math.literal.to_owned(),
+                }),
+                children,
+            ),
+
+            ExNode {
+                data: ExNodeData::MultilineBlockQuote(ref node_multiline_block_quote),
+                children,
+            } => build(
+                NodeValue::MultilineBlockQuote(NodeMultilineBlockQuote {
+                    fence_length: node_multiline_block_quote.fence_length,
+                    fence_offset: node_multiline_block_quote.fence_offset,
+                }),
+                children,
+            ),
+
+            ExNode {
+                data: ExNodeData::Escaped,
+                children,
+            } => build(NodeValue::Escaped, children),
         }
     }
 }
@@ -407,7 +793,7 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
         let children = ast_node.children().map(Self::from).collect::<Vec<_>>();
         let node_value = &ast_node.data.borrow().value;
 
-        println!("node_value: {:?}", node_value);
+        // println!("node_value: {:?}", node_value);
 
         match node_value {
             NodeValue::Document => Self {
@@ -522,7 +908,7 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
 
             NodeValue::Table(ref table) => Self {
                 data: ExNodeData::Table(ExNodeTable {
-                    alignments: ExTableAlignment::from_vec(table.alignments.to_vec()),
+                    alignments: ExTableAlignment::from_table_alignments(table.alignments.to_vec()),
                     num_columns: table.num_columns,
                     num_rows: table.num_rows,
                     num_nonempty_cells: table.num_nonempty_cells,
@@ -650,6 +1036,25 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
     }
 }
 
+impl<'a> From<Term<'a>> for ExNode {
+    fn from(term: Term<'a>) -> Self {
+        // println!("from term: {:?}", term);
+
+        if term.is_binary() {
+            let text: String = term.decode().unwrap();
+            ExNode {
+                data: ExNodeData::Text(text),
+                children: vec![],
+            }
+        } else {
+            ExNode {
+                data: ExNodeData::Text("TODO".to_string()),
+                children: vec![],
+            }
+        }
+    }
+}
+
 // encoding
 impl Encoder for ExNode {
     fn encode<'a>(&self, env: Env<'a>) -> Term<'a> {
@@ -716,7 +1121,9 @@ impl Encoder for ExNode {
                         ),
                         ExNodeAttr(
                             "bullet_char".to_string(),
-                            ExNodeAttrValue::Text(char_to_string(list.bullet_char)),
+                            ExNodeAttrValue::Text(
+                                char_to_string(list.bullet_char).unwrap_or_default(),
+                            ),
                         ),
                         ExNodeAttr("tight".to_string(), ExNodeAttrValue::Bool(list.tight)),
                     ],
@@ -749,7 +1156,9 @@ impl Encoder for ExNode {
                         ),
                         ExNodeAttr(
                             "bullet_char".to_string(),
-                            ExNodeAttrValue::Text(char_to_string(list.bullet_char)),
+                            ExNodeAttrValue::Text(
+                                char_to_string(list.bullet_char).unwrap_or_default(),
+                            ),
                         ),
                         ExNodeAttr("tight".to_string(), ExNodeAttrValue::Bool(list.tight)),
                     ],
@@ -824,7 +1233,9 @@ impl Encoder for ExNode {
                         ),
                         ExNodeAttr(
                             "fence_char".to_string(),
-                            ExNodeAttrValue::Text(char_to_string(code_block.fence_char)),
+                            ExNodeAttrValue::Text(
+                                char_to_string(code_block.fence_char).unwrap_or_default(),
+                            ),
                         ),
                         ExNodeAttr(
                             "fence_length".to_string(),
@@ -952,7 +1363,7 @@ impl Encoder for ExNode {
                             ExNodeAttrValue::Usize(table.num_rows),
                         ),
                         ExNodeAttr(
-                            "num_nomempty_cells".to_string(),
+                            "num_nonempty_cells".to_string(),
                             ExNodeAttrValue::Usize(table.num_nonempty_cells),
                         ),
                     ],
@@ -1262,6 +1673,27 @@ impl Encoder for ExNode {
     }
 }
 
+impl<'a> From<Term<'a>> for ExNodeAttr {
+    fn from(term: Term<'a>) -> Self {
+        let term = get_tuple(term).unwrap();
+
+        let name: String = term.get(0).unwrap().decode().unwrap();
+
+        let value = *term.get(1).unwrap();
+        let value: ExNodeAttrValue = ExNodeAttrValue::from(value);
+
+        ExNodeAttr(name, value)
+    }
+}
+
+impl<'a> From<Term<'a>> for ExNodeAttrValue {
+    fn from(term: Term<'a>) -> Self {
+        // println!("term: {:?}", term.get_type());
+
+        ExNodeAttrValue::Text("todo".to_string())
+    }
+}
+
 impl ExListType {
     fn from(list_type: ListType) -> Self {
         match list_type {
@@ -1298,27 +1730,65 @@ impl ToString for ExListDelimType {
     }
 }
 
-fn char_to_string(c: u8) -> String {
+fn char_to_string(c: u8) -> Result<String, &'static str> {
     match String::from_utf8(vec![c]) {
-        Ok(s) => s,
-        Err(_) => "".to_string(),
+        Ok(s) => Ok(s),
+        Err(_) => Err("failed to convert to string"),
+    }
+}
+
+fn string_to_char(c: String) -> Option<u8> {
+    let value = c.chars().next().unwrap();
+    if value.is_ascii() {
+        Some(value as u8)
+    } else {
+        None
     }
 }
 
 impl ExTableAlignment {
-    fn from_vec(table_alignments: Vec<TableAlignment>) -> Vec<Self> {
-        table_alignments
+    fn from_table_alignments(alignments: Vec<TableAlignment>) -> Vec<Self> {
+        alignments
             .iter()
-            .map(|&ta| Self::from(ta))
+            .map(|&ta| Self::from_table_alignment(ta))
             .collect::<Vec<Self>>()
     }
 
-    fn from(table_alignment: TableAlignment) -> Self {
-        match table_alignment {
+    fn from_table_alignment(alignment: TableAlignment) -> Self {
+        match alignment {
             TableAlignment::None => Self::None,
             TableAlignment::Left => Self::Left,
             TableAlignment::Center => Self::Center,
             TableAlignment::Right => Self::Right,
+        }
+    }
+
+    fn from_terms(alignments: Vec<Term>) -> Vec<Self> {
+        alignments
+            .iter()
+            .map(|&ta| match ta.decode().unwrap() {
+                "none" => Self::None,
+                "left" => Self::Left,
+                "center" => Self::Center,
+                "right" => Self::Right,
+                _ => panic!("invalid table alignment"),
+            })
+            .collect::<Vec<Self>>()
+    }
+
+    fn to_table_alignments(alignments: Vec<ExTableAlignment>) -> Vec<TableAlignment> {
+        alignments
+            .iter()
+            .map(|ta| Self::to_table_alignment(ta.clone()))
+            .collect::<Vec<TableAlignment>>()
+    }
+
+    fn to_table_alignment(alignment: ExTableAlignment) -> TableAlignment {
+        match alignment {
+            ExTableAlignment::None => TableAlignment::None,
+            ExTableAlignment::Left => TableAlignment::Left,
+            ExTableAlignment::Center => TableAlignment::Center,
+            ExTableAlignment::Right => TableAlignment::Right,
         }
     }
 }
@@ -1331,5 +1801,114 @@ impl ToString for ExTableAlignment {
             Self::Center => "center".to_string(),
             Self::Right => "right".to_string(),
         }
+    }
+}
+
+impl ExNodeData {
+    fn heading_from_attrs(attrs: Vec<Term>) -> Result<Self, &'static str> {
+        let mut level: Option<u8> = None;
+        let mut setext: Option<bool> = None;
+
+        for term in attrs {
+            let (name, value): (&str, Term) = term.decode().unwrap();
+
+            match (name, value) {
+                ("level", _) => level = value.decode().ok(),
+                ("setext", _) => setext = value.decode().ok(),
+                (_name, _) => return Err("unexpected attribute"),
+            }
+        }
+
+        Ok(ExNodeData::Heading(ExNodeHeading {
+            level: level.ok_or("attr alignments is missing or invalid")?,
+            setext: setext.ok_or("attr num_columns is missing or invalid")?,
+        }))
+    }
+
+    fn table_from_attrs(attrs: Vec<Term>) -> Result<Self, &'static str> {
+        let mut alignments: Option<Vec<ExTableAlignment>> = None;
+        let mut num_columns: Option<usize> = None;
+        let mut num_rows: Option<usize> = None;
+        let mut num_nonempty_cells: Option<usize> = None;
+
+        for term in attrs {
+            let (name, value): (&str, Term) = term.decode().unwrap();
+
+            match (name, value) {
+                ("alignments", _) => {
+                    // FIXME: improve this code
+                    let v: Vec<Term> = value.decode().unwrap();
+                    let vv = ExTableAlignment::from_terms(v);
+                    alignments = Some(vv);
+                }
+                ("num_columns", _) => num_columns = value.decode().ok(),
+                ("num_rows", _) => num_rows = value.decode().ok(),
+                ("num_nonempty_cells", _) => num_nonempty_cells = value.decode().ok(),
+                (_name, _) => return Err("unexpected attribute"),
+            }
+        }
+
+        Ok(ExNodeData::Table(ExNodeTable {
+            alignments: alignments.ok_or("attr alignments is missing or invalid")?,
+            num_columns: num_columns.ok_or("attr num_columns is missing or invalid")?,
+            num_rows: num_rows.ok_or("attr num_rows is missing or invalid")?,
+            num_nonempty_cells: num_nonempty_cells
+                .ok_or("attr num_nonempty_cells is missing or invalid")?,
+        }))
+    }
+
+    fn table_row_from_attrs(attrs: Vec<Term>) -> Result<Self, &'static str> {
+        for &term in &attrs {
+            let (name, value): (&str, Term) = term.decode().unwrap();
+            if name == "header" {
+                let header: bool = value.decode().expect("attr header is missing or invalid");
+                return Ok(ExNodeData::TableRow(header));
+            }
+        }
+
+        Err("attr header is missing or invalid")
+    }
+
+    fn code_block_from_attrs(attrs: Vec<Term>) -> Result<Self, &'static str> {
+        let mut fenced: Option<bool> = None;
+        let mut fence_char: Option<u8> = None;
+        let mut fence_length: Option<usize> = None;
+        let mut fence_offset: Option<usize> = None;
+        let mut info: Option<String> = None;
+        let mut literal: Option<String> = None;
+
+        for term in attrs {
+            let (name, value): (&str, Term) = term.decode().unwrap();
+
+            match (name, value) {
+                ("fenced", _) => fenced = value.decode().ok(),
+                ("fence_char", _) => {
+                    let fence_char_string: NifResult<String> = value.decode();
+
+                    match fence_char_string {
+                        Ok(c) => {
+                            fence_char = string_to_char(c);
+                        }
+                        Err(e) => {
+                            return Err("failed to convert fence_char");
+                        }
+                    }
+                }
+                ("fence_length", _) => fence_length = value.decode().ok(),
+                ("fence_offset", _) => fence_offset = value.decode().ok(),
+                ("info", _) => info = value.decode().ok(),
+                ("literal", _) => literal = value.decode().ok(),
+                (_name, _) => return Err("unexpected attribute"),
+            }
+        }
+
+        Ok(ExNodeData::CodeBlock(ExNodeCodeBlock {
+            fenced: fenced.ok_or("attr fenced is missing or invalid")?,
+            fence_char: fence_char.ok_or("attr fence_char is missing or invalid")?,
+            fence_length: fence_length.ok_or("attr fence_length is missing or invalid")?,
+            fence_offset: fence_offset.ok_or("attr fence_offset is missing or invalid")?,
+            info: info.ok_or("attr info is missing or invalid")?,
+            literal: literal.ok_or("attr literal is missing or invalid")?,
+        }))
     }
 }
