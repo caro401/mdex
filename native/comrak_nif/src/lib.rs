@@ -8,6 +8,7 @@ mod inkjet_adapter;
 mod types;
 
 use ammonia::clean;
+use comrak::{ExtensionOptions, ListStyleType, ParseOptions, RenderOptions};
 use comrak::{markdown_to_html, markdown_to_html_with_plugins, ComrakPlugins, Options};
 use inkjet_adapter::InkjetAdapter;
 use rustler::{Env, NifResult, Term};
