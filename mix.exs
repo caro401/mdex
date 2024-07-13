@@ -2,7 +2,7 @@ defmodule MDEx.MixProject do
   use Mix.Project
 
   @source_url "https://github.com/leandrocp/mdex"
-  @version "0.1.16-dev"
+  @version "0.1.17"
   @dev? String.ends_with?(@version, "-dev")
   @force_build? System.get_env("MDEX_BUILD") in ["1", "true"]
 
@@ -10,7 +10,7 @@ defmodule MDEx.MixProject do
     [
       app: :mdex,
       version: @version,
-      elixir: "~> 1.14",
+      elixir: "~> 1.13",
       start_permanent: Mix.env() == :prod,
       package: package(),
       docs: docs(),
@@ -57,7 +57,6 @@ defmodule MDEx.MixProject do
   defp docs do
     [
       main: "MDEx",
-      assets: "assets/images",
       logo: "assets/images/mdex_icon.png",
       source_ref: "v#{@version}",
       source_url: @source_url,
@@ -70,7 +69,7 @@ defmodule MDEx.MixProject do
     [
       {:rustler, "~> 0.32", optional: not (@dev? or @force_build?)},
       {:rustler_precompiled, "~> 0.7"},
-      {:ex_doc, "~> 0.29", only: :dev}
+      {:ex_doc, "~> 0.34", only: :dev}
     ]
   end
 

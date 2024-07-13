@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.17 (2024-06-19)
+
+### Enhancements
+  * Relax minimum required Elixir version to 1.13
+  * Bump comrak to 0.24.1
+  * Bump ammonia to 4.0
+  * Add new `extension` options: multiline_block_quotes, math_dollars, math_code, shortcodes, wikilinks_title_after_pipe, wikilinks_title_before_pipe
+  * Add new `render` option: escaped_char_spans
+  * Add new option `features.syntax_highlight_inline_style` to control whether to embed inline styles or not. Default is `true`.
+
+### Changed
+  * Build binaries on MacOS 12
+
+## 0.1.16 (2024-04-29)
+
+### Enhancements
+  * Added language `objc` to syntax highlighter.
+
 ## 0.1.15 (2024-04-16)
 
 ### Enhancements

@@ -17,6 +17,8 @@ pub struct ExExtensionOptions {
     pub math_dollars: bool,
     pub math_code: bool,
     pub shortcodes: bool,
+    pub wikilinks_title_after_pipe: bool,
+    pub wikilinks_title_before_pipe: bool,
 }
 
 #[derive(Debug, NifStruct)]
@@ -56,6 +58,7 @@ pub struct ExRenderOptions {
     pub escape: bool,
     pub list_style: ExListStyleType,
     pub sourcepos: bool,
+    pub escaped_char_spans: bool,
 }
 
 #[derive(Debug, NifStruct)]
@@ -63,6 +66,7 @@ pub struct ExRenderOptions {
 pub struct ExFeaturesOptions {
     pub sanitize: bool,
     pub syntax_highlight_theme: Option<String>,
+    pub syntax_highlight_inline_style: Option<bool>,
 }
 
 #[derive(Debug, NifStruct)]

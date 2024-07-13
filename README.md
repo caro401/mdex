@@ -56,49 +56,99 @@ MDEx.to_html("# Hello")
 #=> "<h1>Hello</h1>\n"
 ```
 
-```elixir
-MDEx.to_html(~S"""
-# MDEx
+And you can change how the markdown is parsed and formatted by passing options to `MDEx.to_html/2` to enable more features:
 
-Some benefits you'll find:
-- Fast
-- CommonMark spec
-- Binary is precompiled, no need to compile anything
-""") |> IO.puts()
-#=>
-#=> <h1>MDEx</h1>
-#=> <p>Some benefits you'll find:</p>
+### GitHub Flavored Markdown with emojis
+
+```elixir
+MDEx.to_html(
+  ~S"""
+  # GitHub Flavored Markdown :rocket:
+
+  - [x] Task A
+  - [x] Task B
+  - [ ] Task C
+
+  | Feature | Status |
+  | ------- | ------ |
+  | Fast | :white_check_mark: |
+  | GFM  | :white_check_mark: |
+
+  Check out the spec at https://github.github.com/gfm/
+  """,
+  extension: [
+    strikethrough: true,
+    tagfilter: true,
+    table: true,
+    autolink: true,
+    tasklist: true,
+    footnotes: true,
+    shortcodes: true,
+  ],
+  parse: [
+    smart: true,
+    relaxed_tasklist_matching: true,
+    relaxed_autolinks: true
+  ],
+  render: [
+     github_pre_lang: true,
+     escape: true
+  ]
+) |> IO.puts()
+#=> <p>GitHub Flavored Markdown 🚀</p>
 #=> <ul>
-#=> <li>Fast</li>
-#=> <li>CommonMark spec</li>
-#=> <li>Binary is precompiled, no need to compile anything</li>
-#=> <li>Easier to work with since it's Rust</li>
+#=>   <li><input type="checkbox" checked="" disabled="" /> Task A</li>
+#=>   <li><input type="checkbox" checked="" disabled="" /> Task B</li>
+#=>   <li><input type="checkbox" disabled="" /> Task C</li>
 #=> </ul>
+#=> <table>
+#=>   <thead>
+#=>     <tr>
+#=>       <th>Feature</th>
+#=>       <th>Status</th>
+#=>     </tr>
+#=>   </thead>
+#=>   <tbody>
+#=>     <tr>
+#=>       <td>Fast</td>
+#=>       <td>✅</td>
+#=>     </tr>
+#=>     <tr>
+#=>       <td>GFM</td>
+#=>       <td>✅</td>
+#=>     </tr>
+#=>   </tbody>
+#=> </table>
+#=> <p>Check out the spec at <a href="https://github.github.com/gfm/">https://github.github.com/gfm/</a></p>
 ```
 
-```elixir
+### Code Syntax Highlighting
+
+````elixir
 MDEx.to_html(~S"""
-# And more...
-
-* Built-in code syntax highlight
-
-\```elixir
+```elixir
 String.upcase("elixir")
-\```
-""") |> IO.puts()
-#=> <h1>And more...</h1>
-#=> <ul>
-#=> <li>Built-in code syntax highlight</li>
-#=> </ul>
-#=> <pre class="autumn-hl" style="background-color: #282C34; color: #ABB2BF;">
-#=> <code class="language-elixir" translate="no">
-#=> <span class="ahl-namespace" style="color: #61AFEF;">String</span><span class="ahl-operator" style="color: #C678DD;">.</span><span class="ahl-function" style="color: #61AFEF;">upcase</span><span class="ahl-punctuation ahl-bracket" style="color: #ABB2BF;">(</span><span class="ahl-string" style="color: #98C379;">&quot;elixir&quot;</span><span class="ahl-punctuation ahl-bracket" style="color: #ABB2BF;">)</span>
-#=> </code></pre>
 ```
+""",
+features: [syntax_highlight_theme: "catppuccin_latte"]
+) |> IO.puts()
+#=> <pre class=\"autumn highlight\" style=\"background-color: #282C34; color: #ABB2BF;\">
+#=>   <code class=\"language-elixir\" translate=\"no\">
+#=>     <span class=\"namespace\" style=\"color: #61AFEF;\">String</span><span class=\"operator\" style=\"color: #C678DD;\">.</span><span class=\"function\" style=\"color: #61AFEF;\">upcase</span><span class=\"\" style=\"color: #ABB2BF;\">(</span><span class=\"string\" style=\"color: #98C379;\">&quot;elixir&quot;</span><span class=\"\" style=\"color: #ABB2BF;\">)</span>
+#=>   </code>
+#=> </pre>
+````
 
 ## Demo and Samples
 
-A [livebook](https://github.com/leandrocp/mdex/blob/main/playground.livemd) and a [script](https://github.com/leandrocp/mdex/blob/main/playground.exs) are available to play with and experiment with this library,or you can check out all [available samples](https://github.com/leandrocp/mdex/tree/main/priv/generated/samples) at https://mdex-c31.pages.dev
+A [livebook](https://github.com/leandrocp/mdex/blob/main/playground.livemd) and a [script](https://github.com/leandrocp/mdex/blob/main/playground.exs) are available to play with and experiment with this library, or you can check out all [available samples](https://github.com/leandrocp/mdex/tree/main/priv/generated/samples) at https://mdex-c31.pages.dev
+
+## Used By
+
+- [BeaconCMS](https://github.com/BeaconCMS/beacon)
+- [Tableau](https://github.com/elixir-tools/tableau)
+
+_Using it and want your project listed here? Please send a PR!_
 
 ## Benchmark
 
@@ -106,26 +156,28 @@ A [simple script](benchmark.exs) is available to compare existing libs:
 
 ```
 Name              ips        average  deviation         median         99th %
-cmark         24.01 K      0.0417 ms    ±14.11%      0.0405 ms      0.0631 ms
-mdex          16.37 K      0.0611 ms     ±9.65%      0.0601 ms      0.0870 ms
-md             0.85 K        1.18 ms     ±4.72%        1.16 ms        1.36 ms
-earmark        0.47 K        2.14 ms     ±2.82%        2.13 ms        2.42 ms
+cmark         22.82 K      0.0438 ms    ±16.24%      0.0429 ms      0.0598 ms
+mdex           3.57 K        0.28 ms     ±9.79%        0.28 ms        0.33 ms
+md             0.34 K        2.95 ms    ±10.56%        2.90 ms        3.62 ms
+earmark        0.25 K        4.04 ms     ±4.50%        4.00 ms        4.44 ms
 
 Comparison:
-cmark         24.01 K
-mdex          16.37 K - 1.47x slower +0.0194 ms
-md             0.85 K - 28.36x slower +1.14 ms
-earmark        0.47 K - 51.47x slower +2.10 ms
+cmark         22.82 K
+mdex           3.57 K - 6.39x slower +0.24 ms
+md             0.34 K - 67.25x slower +2.90 ms
+earmark        0.25 K - 92.19x slower +4.00 ms
 ```
 
 ## Motivation
 
-* `earmark` [can't parse](https://github.com/RobertDober/earmark_parser/issues/126) all kinds of documents and is slow to convert hundreds of markdowns.
-* `md` is fast enough and extensible but the doc says "If one needs to perfectly parse the common markdown, Md is probably not the correct choice" so it also fails to parse many documents.
+* `earmark` is extensible but [can't parse](https://github.com/RobertDober/earmark_parser/issues/126) all kinds of documents and is slow to convert hundreds of markdowns.
+* `md` is very extensible but the doc says "If one needs to perfectly parse the common markdown, Md is probably not the correct choice" which is probably the cause for failing to parse many documents.
 * `markdown` is not precompiled and has not received updates in a while.
-* `cmark` is a fast CommonMark parser but it requires compiling the C library and is hard to extend.
+* `cmark` is a fast CommonMark parser but it requires compiling the C library, is hard to extend, and was archieved on Apr 2024
 
-But if any of the available libraries is working for you, you can keep using it :)
+_Note that MDEx is the only one that syntax highlights out-of-the-box which contributes to make it slower than cmark._
+
+To finish, a friendly reminder that all libs have their own strengths and trade-offs.
 
 ## Looking for help with your Elixir project?
 

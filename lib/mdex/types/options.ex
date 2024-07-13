@@ -13,7 +13,9 @@ defmodule MDEx.Types.ExtensionOptions do
             multiline_block_quotes: false,
             math_dollars: false,
             math_code: false,
-            shortcodes: false
+            shortcodes: false,
+            wikilinks_title_after_pipe: false,
+            wikilinks_title_before_pipe: false
 end
 
 defmodule MDEx.Types.ParseOptions do
@@ -33,13 +35,15 @@ defmodule MDEx.Types.RenderOptions do
             unsafe_: false,
             escape: false,
             list_style: :dash,
-            sourcepos: false
+            sourcepos: false,
+            escaped_char_spans: false
 end
 
 defmodule MDEx.Types.FeaturesOptions do
   @moduledoc false
   defstruct sanitize: false,
-            syntax_highlight_theme: "onedark"
+            syntax_highlight_theme: "onedark",
+            syntax_highlight_inline_style: true
 end
 
 defmodule MDEx.Types.Options do

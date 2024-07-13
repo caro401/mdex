@@ -10,19 +10,19 @@ path = "src/lib.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-rustler = { version = "0.32", features = [
+rustler = { version = "0.33", features = [
     "derive",
     "nif_version_2_15",
     "serde",
 ] }
 serde = "1.0"
-comrak = { version = "0.22", features = [ "shortcodes" ] }
-ammonia = "3.3"
+comrak = { version = "0.24", features = ["shortcodes"] }
+ammonia = "4.0"
 phf = { version = "0.11", features = ["macros"] }
 tree-sitter = "0.20"
 tree-sitter-highlight = "0.20"
 v_htmlescape = "0.15"
-inkjet = { version = "0.10.4", default-features = false, features = [
+inkjet = { version = "0.10.5", default-features = false, features = [
     "html",
     "language-bash",
     "language-c",
@@ -54,6 +54,7 @@ inkjet = { version = "0.10.4", default-features = false, features = [
     "language-llvm",
     "language-lua",
     "language-make",
+    "language-objc",
     "language-ocaml",
     "language-ocaml-interface",
     "language-pascal",
