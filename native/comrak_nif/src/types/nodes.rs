@@ -148,7 +148,7 @@ pub struct ExNodeLink {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExNodeShortCode {
-    pub shortcode: String,
+    pub code: String,
     pub emoji: String,
 }
 
@@ -401,7 +401,7 @@ impl ExNode {
             },
             "short_code" => ExNode {
                 data: ExNodeData::ShortCode(ExNodeShortCode {
-                    shortcode: "TODO".to_string(),
+                    code: "TODO".to_string(),
                     emoji: "TODO".to_string(),
                 }),
                 children,
@@ -745,7 +745,8 @@ impl ExNode {
                 data: ExNodeData::ShortCode(ref node_shortcode),
                 children,
             } => build(
-                NodeValue::ShortCode(NodeShortCode::try_from("rocket").unwrap()),
+                // TODO: resolve shortcode emoji name
+                NodeValue::ShortCode(NodeShortCode::resolve("rocket").unwrap()),
                 children,
             ),
 
@@ -1005,8 +1006,8 @@ impl<'a> From<&'a AstNode<'a>> for ExNode {
 
             NodeValue::ShortCode(ref short_code) => Self {
                 data: ExNodeData::ShortCode(ExNodeShortCode {
-                    shortcode: short_code.shortcode().to_string(),
-                    emoji: short_code.emoji().to_string(),
+                    code: short_code.code.to_string(),
+                    emoji: short_code.emoji.to_string(),
                 }),
                 children,
             },
@@ -1600,7 +1601,7 @@ impl Encoder for ExNode {
                     vec![
                         ExNodeAttr(
                             "name".to_string(),
-                            ExNodeAttrValue::Text(short_code.shortcode.to_string()),
+                            ExNodeAttrValue::Text(short_code.code.to_string()),
                         ),
                         ExNodeAttr(
                             "emoji".to_string(),
